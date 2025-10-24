@@ -1,9 +1,12 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, DollarSign, Package } from "lucide-react";
+import { MapPin, DollarSign, Package, Navigation, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import ServiceStatusFlow from "./ServiceStatusFlow";
+import { useServicePermissions } from "@/hooks/use-service-permissions";
 
 interface ServiceCardProps {
   service: {
@@ -22,6 +25,7 @@ interface ServiceCardProps {
 }
 
 const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardProps) => {
+  const { canAcceptService, canUpdateService } = useServicePermissions();
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
@@ -57,19 +61,26 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      console.log('Tentando aceitar serviço:', service.id, 'usuário:', user.id);
+
       const { error } = await supabase
         .from("services")
         .update({
           motoboy_id: user.id,
           status: "accepted",
         })
-        .eq("id", service.id);
+        .eq("id", service.id)
+        .eq("status", "available"); // Only update if still available
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao aceitar serviço:', error);
+        throw error;
+      }
 
       toast.success("Corrida aceita com sucesso!");
       onUpdate();
     } catch (error: any) {
+      console.error('Erro completo:', error);
       toast.error(error.message || "Erro ao aceitar corrida");
     }
   };
@@ -132,20 +143,54 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
           <span>R$ {service.price.toFixed(2)}</span>
         </div>
       </CardContent>
-      {isMotoboy && service.status === "available" && (
-        <CardFooter>
-          <Button onClick={handleAcceptService} className="w-full">
-            Aceitar Corrida
+      <CardFooter className="flex gap-2">
+        {/* Navegação GPS */}
+        {(isMotoboy || isCompany) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const destination = isMotoboy && service.status === 'accepted' 
+                ? service.pickup_location 
+                : service.delivery_location;
+              window.open(`https://maps.google.com/dir/?api=1&destination=${encodeURIComponent(destination)}`, '_blank');
+            }}
+          >
+            <Navigation className="h-4 w-4 mr-1" />
+            GPS
           </Button>
-        </CardFooter>
-      )}
-      {isMotoboy && service.status === "accepted" && (
-        <CardFooter>
-          <Button onClick={handleCompleteService} className="w-full">
-            Marcar como Concluída
+        )}
+        
+        {/* Detalhes Completos */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Info className="h-4 w-4 mr-1" />
+              Detalhes
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm mx-auto">
+            <DialogHeader>
+              <DialogTitle>Detalhes da Corrida</DialogTitle>
+              <DialogDescription>
+                Acompanhe o status e gerencie sua corrida
+              </DialogDescription>
+            </DialogHeader>
+            <ServiceStatusFlow 
+              service={service} 
+              isMotoboy={isMotoboy}
+              onUpdate={onUpdate}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Ação Rápida */}
+        {isMotoboy && canAcceptService(service) && (
+          <Button onClick={handleAcceptService} className="flex-1">
+            Aceitar
           </Button>
-        </CardFooter>
-      )}
+        )}
+      </CardFooter>
     </Card>
   );
 };
