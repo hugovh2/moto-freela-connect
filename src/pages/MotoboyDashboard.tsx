@@ -542,16 +542,9 @@ const MotoboyDashboard = () => {
               {viewMode === 'map' ? (
                 <Card>
                   <CardContent className="p-6">
-                    <GoogleMap
-                      height="500px"
-                      services={nearbyServices.length > 0 ? nearbyServices : availableServices}
-                      showUserLocation={true}
-                      center={currentUserLocation || (position ? {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                      } : undefined)}
-                      className="border"
-                    />
+                    <div className="h-[500px] bg-muted rounded-lg flex items-center justify-center">
+                      <p className="text-muted-foreground">Mapa em desenvolvimento</p>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (
@@ -572,7 +565,6 @@ const MotoboyDashboard = () => {
                             service={service}
                             onUpdate={() => {
                               fetchServices();
-                              loadNearbyServices();
                             }}
                             isMotoboy
                           />
