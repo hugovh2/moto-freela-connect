@@ -108,7 +108,15 @@ const Index = () => {
                 </Button>
               </Link>
               <Link to="/auth" className="group">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 transform hover:scale-105">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="w-full sm:w-auto text-lg px-8 py-6 border-2 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 transform hover:scale-105"
+                  style={{ 
+                    color: 'var(--foreground, #0f172a)',
+                    borderColor: 'var(--border, #e2e8f0)'
+                  }}
+                >
                   <Bike className="h-5 w-5 mr-2" />
                   Sou Motoboy
                   <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
