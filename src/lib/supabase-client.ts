@@ -5,7 +5,6 @@
 
 import { createClient, SupabaseClient, AuthError } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
-import { TokenStorage } from './secure-storage';
 import { handleAuthError, handleNetworkError } from './error-handler';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -36,61 +35,19 @@ const onTokenRefreshed = (token: string) => {
 const createEnhancedClient = (): SupabaseClient<Database> => {
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: {
-        getItem: async (key: string) => {
-          try {
-            const value = await TokenStorage.getUserSession();
-            return value ? JSON.stringify(value) : null;
-          } catch (error) {
-            console.error('[Supabase] Error getting item:', error);
-            return null;
-          }
-        },
-        setItem: async (key: string, value: string) => {
-          try {
-            const session = JSON.parse(value);
-            await TokenStorage.setUserSession(session);
-          } catch (error) {
-            console.error('[Supabase] Error setting item:', error);
-          }
-        },
-        removeItem: async (key: string) => {
-          try {
-            await TokenStorage.clearAll();
-          } catch (error) {
-            console.error('[Supabase] Error removing item:', error);
-          }
-        },
-      },
+      // Usar localStorage padrão ao invés de storage customizado
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storage: window.localStorage,
     },
   });
 
   // Set up auth state change listener
-  client.auth.onAuthStateChange(async (event, session) => {
+  client.auth.onAuthStateChange((event, session) => {
     console.log('[Supabase] Auth state changed:', event);
-
-    if (event === 'SIGNED_IN' && session) {
-      // Store tokens securely
-      if (session.access_token) {
-        await TokenStorage.setAccessToken(session.access_token);
-      }
-      if (session.refresh_token) {
-        await TokenStorage.setRefreshToken(session.refresh_token);
-      }
-    } else if (event === 'SIGNED_OUT') {
-      // Clear all tokens
-      await TokenStorage.clearAll();
-    } else if (event === 'TOKEN_REFRESHED' && session) {
-      // Update stored tokens
-      if (session.access_token) {
-        await TokenStorage.setAccessToken(session.access_token);
-      }
-      if (session.refresh_token) {
-        await TokenStorage.setRefreshToken(session.refresh_token);
-      }
+    
+    if (event === 'TOKEN_REFRESHED' && session?.access_token) {
       onTokenRefreshed(session.access_token);
     }
   });
@@ -239,8 +196,6 @@ export const signOut = async () => {
       return false;
     }
 
-    // Clear all stored tokens
-    await TokenStorage.clearAll();
     return true;
   } catch (error) {
     console.error('[Supabase] Sign out exception:', error);

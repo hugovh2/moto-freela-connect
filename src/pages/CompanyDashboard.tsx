@@ -29,6 +29,8 @@ import {
 import { toast } from "sonner";
 import CreateServiceDialog from "@/components/CreateServiceDialog";
 import ServiceCard from "@/components/ServiceCard";
+import { LiveTracking } from "@/components/LiveTracking";
+import { ChatWindow } from "@/components/ChatWindow";
 import { useServiceNotifications } from "@/hooks/use-service-notifications";
 
 interface Service {
@@ -41,6 +43,8 @@ interface Service {
   price: number;
   status: string;
   created_at: string;
+  company_id: string;
+  motoboy_id?: string;
 }
 
 const CompanyDashboard = () => {
@@ -50,6 +54,9 @@ const CompanyDashboard = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'cards' | 'map'>('cards');
   const [companyProfile, setCompanyProfile] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [showTracking, setShowTracking] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [stats, setStats] = useState({
     totalServices: 0,
     activeServices: 0,
@@ -397,16 +404,53 @@ const CompanyDashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-8">
               {services.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  onUpdate={fetchServices}
-                  isCompany
-                />
+                <div key={service.id} className="space-y-4">
+                  <ServiceCard
+                    service={service}
+                    onUpdate={fetchServices}
+                    isCompany
+                  />
+                  
+                  {/* Live Tracking para serviços ativos */}
+                  {service.motoboy_id && ['accepted', 'in_progress'].includes(service.status) && (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <LiveTracking
+                        serviceId={service.id}
+                        motoboyId={service.motoboy_id}
+                        pickupLocation={service.pickup_location}
+                        deliveryLocation={service.delivery_location}
+                      />
+                      
+                      <div>
+                        <Button
+                          onClick={() => {
+                            setSelectedService(service);
+                            setShowChat(true);
+                          }}
+                          className="w-full"
+                        >
+                          Abrir Chat com Motoboy
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
+          )}
+          
+          {/* Chat Window */}
+          {showChat && selectedService && selectedService.motoboy_id && (
+            <ChatWindow
+              serviceId={selectedService.id}
+              receiverId={selectedService.motoboy_id}
+              receiverName="Motoboy"
+              onClose={() => setShowChat(false)}
+              minimized={false}
+              onToggleMinimize={() => {}}
+            />
           )}
         </section>
       </main>

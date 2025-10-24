@@ -439,4 +439,14 @@ All colors MUST be HSL.
   ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(45deg, #e55a2b, #d67ae8);
   }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

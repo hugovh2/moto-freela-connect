@@ -3,7 +3,7 @@
  * Prevents unauthorized access to protected pages
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase, getCurrentUser, getUserProfile, getUserRole } from '@/lib/supabase-client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,11 +25,7 @@ export const ProtectedRoute = ({
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const location = useLocation();
 
-  useEffect(() => {
-    checkAuthorization();
-  }, [location.pathname]);
-
-  const checkAuthorization = async () => {
+  const checkAuthorization = useCallback(async () => {
     try {
       setIsLoading(true);
 
@@ -78,7 +74,11 @@ export const ProtectedRoute = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [requiredRole, redirectTo]);
+
+  useEffect(() => {
+    checkAuthorization();
+  }, [checkAuthorization, location.pathname]);
 
   // Show loading state
   if (isLoading) {
@@ -111,11 +111,7 @@ export const useRequireAuth = (requiredRole?: 'company' | 'motoboy') => {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const user = await getCurrentUser();
       
@@ -144,7 +140,11 @@ export const useRequireAuth = (requiredRole?: 'company' | 'motoboy') => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [requiredRole]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   return { isAuthorized, isLoading, userRole, refetch: checkAuth };
 };

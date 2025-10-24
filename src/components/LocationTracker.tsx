@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,24 +29,46 @@ const LocationTracker = ({
   const [isAvailable, setIsAvailable] = useState(false);
   const { position, error, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
   
-  const currentLocation = position ? {
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-    accuracy: position.coords.accuracy,
-    speed: position.coords.speed,
-    heading: position.coords.heading,
-    timestamp: position.timestamp,
-  } : null;
+  // Usar useRef para armazenar o callback sem causar re-render
+  const onLocationUpdateRef = useRef(onLocationUpdate);
+  
+  // Atualizar ref quando callback mudar
+  useEffect(() => {
+    onLocationUpdateRef.current = onLocationUpdate;
+  }, [onLocationUpdate]);
+  
+  // Memoizar currentLocation para evitar recriação desnecessária
+  const currentLocation = useMemo(() => {
+    if (!position) return null;
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      speed: position.coords.speed,
+      heading: position.coords.heading,
+      timestamp: position.timestamp,
+    };
+  }, [
+    position?.coords.latitude,
+    position?.coords.longitude,
+    position?.coords.accuracy,
+    position?.coords.speed,
+    position?.coords.heading,
+    position?.timestamp
+  ]);
 
   // Notify parent component of location updates
   useEffect(() => {
-    if (currentLocation && onLocationUpdate) {
-      onLocationUpdate({
+    if (currentLocation && onLocationUpdateRef.current) {
+      onLocationUpdateRef.current({
         lat: currentLocation.latitude,
         lng: currentLocation.longitude,
       });
     }
-  }, [currentLocation, onLocationUpdate]);
+  }, [
+    currentLocation?.latitude,
+    currentLocation?.longitude
+  ]);
 
   const handleToggleAvailability = () => {
     const newStatus = !isAvailable;

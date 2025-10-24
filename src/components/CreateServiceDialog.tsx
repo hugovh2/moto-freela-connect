@@ -149,8 +149,35 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
     };
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      console.log('[CreateService] Verificando autenticação...');
+      
+      // Verificar sessão primeiro
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[CreateService] Sessão:', session ? 'Ativa' : 'Inativa');
+      
+      if (!session) {
+        toast.error('Você precisa fazer login para criar serviços');
+        console.error('[CreateService] Nenhuma sessão ativa');
+        return;
+      }
+      
+      // Pegar usuário
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('[CreateService] Erro ao obter usuário:', userError);
+        toast.error('Erro de autenticação: ' + userError.message);
+        return;
+      }
+      
+      if (!user) {
+        toast.error('Usuário não autenticado. Por favor, faça login novamente.');
+        console.error('[CreateService] Usuário não encontrado');
+        return;
+      }
+      
+      console.log('[CreateService] Usuário autenticado:', user.email);
+      console.log('[CreateService] Criando serviço...');
 
       const { error } = await supabase.from("services").insert([
         {
@@ -159,13 +186,18 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
         },
       ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[CreateService] Erro ao inserir:', error);
+        throw error;
+      }
 
+      console.log('[CreateService] Serviço criado com sucesso!');
       haptics.success();
       toast.success("Serviço criado com sucesso!");
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
+      console.error('[CreateService] Erro:', error);
       toast.error(error.message || "Erro ao criar serviço");
     } finally {
       setIsLoading(false);

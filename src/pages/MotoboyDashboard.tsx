@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUser, getUserProfile, getUserRole, signOut } from "@/lib/supabase-client";
@@ -28,6 +28,9 @@ import {
 import { toast } from "sonner";
 import ServiceCard from "@/components/ServiceCard";
 import LocationTracker from "@/components/LocationTracker";
+import { ActiveRideCard } from "@/components/ActiveRideCard";
+import { ChatWindow } from "@/components/ChatWindow";
+import { ServiceFilters, FilterCriteria } from "@/components/ServiceFilters";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useServiceNotifications } from "@/hooks/use-service-notifications";
@@ -42,6 +45,9 @@ interface Service {
   price: number;
   status: string;
   created_at: string;
+  accepted_at?: string;
+  company_id: string;
+  motoboy_id: string;
 }
 
 const MotoboyDashboard = () => {
@@ -65,6 +71,10 @@ const MotoboyDashboard = () => {
   const [servicesInitialized, setServicesInitialized] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [filters, setFilters] = useState<FilterCriteria | null>(null);
+  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   
   const { position, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
   const haptics = useHaptics();
@@ -131,7 +141,7 @@ const MotoboyDashboard = () => {
   };
 
 
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async () => {
     try {
       const user = await getCurrentUser();
       if (!user) {
@@ -175,7 +185,7 @@ const MotoboyDashboard = () => {
         setIsLoading(false);
       }
     }
-  };
+  }, [isMounted, navigate]);
 
   const handleSignOut = async () => {
     try {
@@ -247,13 +257,33 @@ const MotoboyDashboard = () => {
     }
   };
 
-  const handleLocationUpdate = (location: { lat: number; lng: number }) => {
+  const handleLocationUpdate = useCallback((location: { lat: number; lng: number }) => {
     setCurrentUserLocation(location);
-  };
+  }, []);
+
+  const applyFilters = useCallback((criteria: FilterCriteria) => {
+    setFilters(criteria);
+    let filtered = [...availableServices];
+    if (criteria.minPrice) {
+      filtered = filtered.filter(s => s.price >= criteria.minPrice!);
+    }
+    if (criteria.serviceTypes && criteria.serviceTypes.length > 0) {
+      filtered = filtered.filter(s => criteria.serviceTypes!.includes(s.service_type));
+    }
+    setFilteredServices(filtered);
+    toast.success(`${filtered.length} corrida(s) encontrada(s)`);
+  }, [availableServices]);
+
+  const resetFilters = useCallback(() => {
+    setFilters(null);
+    setFilteredServices([]);
+    toast.info('Filtros removidos');
+  }, []);
+
+  const displayServices = filters ? filteredServices : availableServices;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 dark:from-slate-900 dark:to-slate-800">
-      {/* Modern Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/20 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -490,16 +520,32 @@ const MotoboyDashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
               {myServices.map((service) => (
-                <ServiceCard
+                <ActiveRideCard
                   key={service.id}
                   service={service}
+                  isMotoboy={true}
                   onUpdate={fetchServices}
-                  isMotoboy
+                  onOpenChat={() => {
+                    setSelectedService(service);
+                    setChatOpen(true);
+                  }}
                 />
               ))}
             </div>
+          )}
+          
+          {/* Chat Window */}
+          {chatOpen && selectedService && (
+            <ChatWindow
+              serviceId={selectedService.id}
+              receiverId={selectedService.company_id}
+              receiverName="Empresa"
+              onClose={() => setChatOpen(false)}
+              minimized={false}
+              onToggleMinimize={() => {}}
+            />
           )}
         </section>
 
@@ -543,8 +589,66 @@ const MotoboyDashboard = () => {
               {viewMode === 'map' ? (
                 <Card>
                   <CardContent className="p-6">
-                    <div className="h-[500px] bg-muted rounded-lg flex items-center justify-center">
-                      <p className="text-muted-foreground">Mapa em desenvolvimento</p>
+                    <div className="h-[500px] bg-muted rounded-lg overflow-auto">
+                      <div className="space-y-4 p-4">
+                        <h3 className="text-lg font-semibold mb-4">📍 Serviços Disponíveis no Mapa</h3>
+                        {availableServices.length === 0 ? (
+                          <div className="flex items-center justify-center h-64">
+                            <p className="text-muted-foreground">Nenhum serviço disponível no momento</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {availableServices.map((service) => (
+                              <div key={service.id} className="border rounded-lg p-4 hover:bg-accent transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-semibold">{service.title}</h4>
+                                  <Badge className="bg-green-500">R$ {service.price.toFixed(2)}</Badge>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-4 w-4 text-primary mt-0.5" />
+                                    <div>
+                                      <p className="font-medium">De:</p>
+                                      <p className="text-muted-foreground">{service.pickup_location}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-4 w-4 text-destructive mt-0.5" />
+                                    <div>
+                                      <p className="font-medium">Para:</p>
+                                      <p className="text-muted-foreground">{service.delivery_location}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mt-3 flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    className="flex-1"
+                                    onClick={async () => {
+                                      const card = document.querySelector(`[data-service-id="${service.id}"]`);
+                                      if (card) {
+                                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      }
+                                    }}
+                                  >
+                                    Ver Detalhes
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(service.pickup_location)}`, '_blank');
+                                    }}
+                                  >
+                                    <Navigation className="h-4 w-4 mr-1" />
+                                    GPS
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

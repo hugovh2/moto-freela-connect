@@ -57,10 +57,34 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
 
   const handleAcceptService = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      console.log('[ServiceCard] Verificando autenticação do motoboy...');
+      
+      // Verificar sessão primeiro
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ServiceCard] Sessão:', session ? 'Ativa' : 'Inativa');
+      
+      if (!session) {
+        toast.error('Você precisa fazer login para aceitar corridas');
+        console.error('[ServiceCard] Nenhuma sessão ativa');
+        return;
+      }
+      
+      // Pegar usuário
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('[ServiceCard] Erro ao obter usuário:', userError);
+        toast.error('Erro de autenticação: ' + userError.message);
+        return;
+      }
+      
+      if (!user) {
+        toast.error('Usuário não autenticado. Por favor, faça login novamente.');
+        console.error('[ServiceCard] Usuário não encontrado');
+        return;
+      }
 
-      console.log('Tentando aceitar serviço:', service.id, 'usuário:', user.id);
+      console.log('[ServiceCard] Tentando aceitar serviço:', service.id, 'usuário:', user.id);
 
       const { error } = await supabase
         .from("services")
@@ -72,14 +96,15 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
         .eq("status", "available"); // Only update if still available
 
       if (error) {
-        console.error('Erro ao aceitar serviço:', error);
+        console.error('[ServiceCard] Erro ao aceitar serviço:', error);
         throw error;
       }
 
+      console.log('[ServiceCard] Corrida aceita com sucesso!');
       toast.success("Corrida aceita com sucesso!");
       onUpdate();
     } catch (error: any) {
-      console.error('Erro completo:', error);
+      console.error('[ServiceCard] Erro completo:', error);
       toast.error(error.message || "Erro ao aceitar corrida");
     }
   };
@@ -152,7 +177,8 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
               const destination = isMotoboy && service.status === 'accepted' 
                 ? service.pickup_location 
                 : service.delivery_location;
-              window.open(`https://maps.google.com/dir/?api=1&destination=${encodeURIComponent(destination)}`, '_blank');
+              // Usar URL correta do Google Maps
+              window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`, '_blank');
             }}
           >
             <Navigation className="h-4 w-4 mr-1" />
