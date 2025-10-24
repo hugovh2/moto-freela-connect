@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useHaptics } from "@/hooks/use-haptics";
 import { MapPin, Calculator } from "lucide-react";
-import GoogleMap from "./GoogleMap";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -191,21 +190,12 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
               </div>
             </div>
 
-            {/* Map Preview */}
+            {/* Map Preview - Simplified */}
             <Card>
               <CardContent className="p-4">
-                <GoogleMap
-                  height="300px"
-                  enableAddressSearch
-                  showDirections={!!(pickupCoords && deliveryCoords)}
-                  pickup={pickupCoords ? { ...pickupCoords } : undefined}
-                  delivery={deliveryCoords ? { ...deliveryCoords } : undefined}
-                  onAddressSelect={(address, coords) => {
-                    // This is a simplified implementation
-                    // In a real app, you'd need to determine if it's pickup or delivery
-                    console.log('Address selected:', address, coords);
-                  }}
-                />
+                <p className="text-sm text-muted-foreground">
+                  Use o Google Maps para obter as coordenadas precisas dos endereços.
+                </p>
               </CardContent>
             </Card>
           </div>

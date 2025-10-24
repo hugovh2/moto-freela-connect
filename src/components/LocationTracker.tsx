@@ -12,10 +12,8 @@ import {
   Gauge,
   Compass
 } from 'lucide-react';
-import { useLocationTracking } from '@/hooks/use-location-tracking';
+import { useGeolocation } from '@/hooks/use-geolocation';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface LocationTrackerProps {
   serviceId?: string;
@@ -29,21 +27,16 @@ const LocationTracker = ({
   onLocationUpdate 
 }: LocationTrackerProps) => {
   const [isAvailable, setIsAvailable] = useState(false);
+  const { position, error, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
   
-  const {
-    isTracking,
-    currentLocation,
-    error,
-    startTracking,
-    stopTracking,
-    getCurrentPosition,
-    setAvailabilityStatus,
-    hasLocation,
-    isLocationRecent,
-  } = useLocationTracking(serviceId, {
-    updateInterval: 3000, // Update every 3 seconds
-    enableHighAccuracy: true,
-  });
+  const currentLocation = position ? {
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: position.coords.accuracy,
+    speed: position.coords.speed,
+    heading: position.coords.heading,
+    timestamp: position.timestamp,
+  } : null;
 
   // Notify parent component of location updates
   useEffect(() => {
@@ -55,25 +48,22 @@ const LocationTracker = ({
     }
   }, [currentLocation, onLocationUpdate]);
 
-  const handleToggleAvailability = async () => {
+  const handleToggleAvailability = () => {
     const newStatus = !isAvailable;
-    const success = await setAvailabilityStatus(newStatus);
+    setIsAvailable(newStatus);
     
-    if (success) {
-      setIsAvailable(newStatus);
-      toast.success(
-        newStatus ? 'Você está online!' : 'Você está offline'
-      );
+    if (newStatus) {
+      startWatching();
+      toast.success('Você está online!');
+    } else {
+      stopWatching();
+      toast.success('Você está offline');
     }
   };
 
-  const handleGetCurrentLocation = async () => {
-    try {
-      await getCurrentPosition();
-      toast.success('Localização atualizada');
-    } catch (error) {
-      toast.error('Erro ao obter localização');
-    }
+  const handleGetCurrentLocation = () => {
+    getCurrentPosition();
+    toast.success('Atualizando localização...');
   };
 
   const formatCoordinate = (coord: number) => {
@@ -102,7 +92,7 @@ const LocationTracker = ({
             Localização
           </div>
           <div className="flex items-center gap-2">
-            {isTracking ? (
+            {isAvailable ? (
               <Badge variant="default" className="bg-green-500">
                 <Wifi className="h-3 w-3 mr-1" />
                 Online
@@ -181,16 +171,8 @@ const LocationTracker = ({
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>
-                Atualizado {formatDistanceToNow(currentLocation.timestamp, {
-                  addSuffix: true,
-                  locale: ptBR
-                })}
+                Atualizado recentemente
               </span>
-              {!isLocationRecent && (
-                <Badge variant="outline" className="text-xs">
-                  Desatualizada
-                </Badge>
-              )}
             </div>
           </div>
         )}
@@ -238,7 +220,7 @@ const LocationTracker = ({
 
             {/* Tracking Status */}
             <div className="text-center text-xs text-muted-foreground">
-              {isTracking ? (
+              {isAvailable ? (
                 <span className="flex items-center justify-center gap-1">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   Rastreamento ativo

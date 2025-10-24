@@ -93,12 +93,6 @@ export const useAuthStore = create<AuthState>()(
               avatar_url: profile.avatar_url,
               role: profile.role,
               phone: profile.phone,
-              vehicle_type: profile.vehicle_type,
-              vehicle_plate: profile.vehicle_plate,
-              onboarding_completed: profile.onboarding_completed,
-              is_available: profile.is_available,
-              emergency_contact: profile.emergency_contact,
-              emergency_phone: profile.emergency_phone,
               created_at: profile.created_at,
               updated_at: profile.updated_at,
             });

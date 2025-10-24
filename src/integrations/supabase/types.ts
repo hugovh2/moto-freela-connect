@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          message_type: Database["public"]["Enums"]["message_type"] | null
+          read: boolean | null
+          receiver_id: string
+          sender_id: string
+          service_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"] | null
+          read?: boolean | null
+          receiver_id: string
+          sender_id: string
+          service_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"] | null
+          read?: boolean | null
+          receiver_id?: string
+          sender_id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -52,6 +93,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rated_id: string
+          rater_id: string
+          rating: number
+          service_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rated_id: string
+          rater_id: string
+          rating: number
+          service_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rated_id?: string
+          rater_id?: string
+          rating?: number
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -131,14 +210,104 @@ export type Database = {
           },
         ]
       }
+      user_locations: {
+        Row: {
+          accuracy: number | null
+          id: string
+          is_available: boolean | null
+          latitude: number
+          longitude: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          id?: string
+          is_available?: boolean | null
+          latitude: number
+          longitude: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          id?: string
+          is_available?: boolean | null
+          latitude?: number
+          longitude?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_nearby_services: {
+        Args: { _latitude: number; _longitude: number; _radius_km?: number }
+        Returns: {
+          company_id: string
+          delivery_lat: number
+          delivery_lng: number
+          delivery_location: string
+          description: string
+          distance_km: number
+          id: string
+          pickup_lat: number
+          pickup_lng: number
+          pickup_location: string
+          price: number
+          service_type: string
+          status: Database["public"]["Enums"]["service_status"]
+          title: string
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      mark_messages_as_read: {
+        Args: { _service_id: string }
+        Returns: undefined
+      }
+      set_availability_status: {
+        Args: { _is_available: boolean }
+        Returns: undefined
+      }
+      update_user_location: {
+        Args: { _accuracy?: number; _latitude: number; _longitude: number }
+        Returns: undefined
+      }
     }
     Enums: {
+      app_role: "admin" | "moderator" | "company" | "motoboy"
+      message_type: "text" | "image" | "location"
       service_status:
         | "available"
         | "accepted"
@@ -273,6 +442,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "moderator", "company", "motoboy"],
+      message_type: ["text", "image", "location"],
       service_status: [
         "available",
         "accepted",

@@ -5,7 +5,6 @@ import { MapPin, DollarSign, Package, Navigation, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
-import ServiceStatusFlow from "./ServiceStatusFlow";
 import { useServicePermissions } from "@/hooks/use-service-permissions";
 
 interface ServiceCardProps {
@@ -173,14 +172,33 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
             <DialogHeader>
               <DialogTitle>Detalhes da Corrida</DialogTitle>
               <DialogDescription>
-                Acompanhe o status e gerencie sua corrida
+                Status: {getStatusText(service.status)}
               </DialogDescription>
             </DialogHeader>
-            <ServiceStatusFlow 
-              service={service} 
-              isMotoboy={isMotoboy}
-              onUpdate={onUpdate}
-            />
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium">Tipo:</p>
+                <p className="text-muted-foreground">{service.service_type}</p>
+              </div>
+              <div>
+                <p className="font-medium">De:</p>
+                <p className="text-muted-foreground">{service.pickup_location}</p>
+              </div>
+              <div>
+                <p className="font-medium">Para:</p>
+                <p className="text-muted-foreground">{service.delivery_location}</p>
+              </div>
+              <div>
+                <p className="font-medium">Valor:</p>
+                <p className="text-lg font-bold text-primary">R$ {service.price.toFixed(2)}</p>
+              </div>
+              {service.description && (
+                <div>
+                  <p className="font-medium">Descrição:</p>
+                  <p className="text-muted-foreground">{service.description}</p>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
 

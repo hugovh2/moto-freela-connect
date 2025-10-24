@@ -29,7 +29,6 @@ import {
 import { toast } from "sonner";
 import CreateServiceDialog from "@/components/CreateServiceDialog";
 import ServiceCard from "@/components/ServiceCard";
-import GoogleMap from "@/components/GoogleMap";
 import { useServiceNotifications } from "@/hooks/use-service-notifications";
 
 interface Service {
@@ -397,28 +396,15 @@ const CompanyDashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className={`${viewMode === 'cards' ? 'grid md:grid-cols-2 lg:grid-cols-3 gap-6' : ''}`}>
-              {viewMode === 'map' ? (
-                <Card className="border-0 bg-white dark:bg-slate-900">
-                  <CardContent className="p-6">
-                    <GoogleMap
-                      height="600px"
-                      services={services}
-                      showUserLocation={false}
-                      className="rounded-xl"
-                    />
-                  </CardContent>
-                </Card>
-              ) : (
-                services.map((service) => (
-                  <ServiceCard
-                    key={service.id}
-                    service={service}
-                    onUpdate={fetchServices}
-                    isCompany
-                  />
-                ))
-              )}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  onUpdate={fetchServices}
+                  isCompany
+                />
+              ))}
             </div>
           )}
         </section>

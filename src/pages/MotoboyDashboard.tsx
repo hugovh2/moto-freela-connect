@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUser, getUserProfile, signOut } from "@/lib/supabase-client";
 import { safeNavigate } from "@/lib/navigation";
 import { handleError } from "@/lib/error-handler";
-import { initializeMotoboyServices, retryInitialization } from "@/lib/motoboy-service-init";
 import { checkLocationPermission, requestLocationPermissionWithFeedback, showSettingsGuide } from "@/lib/permissions-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,10 +27,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ServiceCard from "@/components/ServiceCard";
-import GoogleMap from "@/components/GoogleMap";
 import LocationTracker from "@/components/LocationTracker";
 import { useGeolocation } from "@/hooks/use-geolocation";
-import { useLocationTracking } from "@/hooks/use-location-tracking";
 import { useHaptics } from "@/hooks/use-haptics";
 import { useServiceNotifications } from "@/hooks/use-service-notifications";
 
@@ -70,12 +67,6 @@ const MotoboyDashboard = () => {
   const [initializationError, setInitializationError] = useState<string | null>(null);
   
   const { position, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
-  const {
-    isTracking,
-    currentLocation,
-    getNearbyServices,
-    setAvailabilityStatus
-  } = useLocationTracking();
   const haptics = useHaptics();
   const { notifications } = useServiceNotifications('motoboy');
 
@@ -84,29 +75,18 @@ const MotoboyDashboard = () => {
     
     return () => {
       setIsMounted(false);
-      // Cleanup location tracking
-      if (isTracking) {
-        stopWatching();
-      }
+      stopWatching();
     };
   }, []);
 
-  // Load nearby services when location changes and user is available
-  useEffect(() => {
-    if (isAvailable && currentLocation) {
-      loadNearbyServices();
-    }
-  }, [isAvailable, currentLocation]);
-
   /**
-   * Initialize dashboard with safe service initialization
+   * Initialize dashboard
    */
   const initializeDashboard = async () => {
     try {
       setIsLoading(true);
-      setInitializationError(null);
       
-      // Step 1: Check authentication
+      // Check authentication
       const user = await getCurrentUser();
       
       if (!user) {
@@ -116,7 +96,7 @@ const MotoboyDashboard = () => {
         return;
       }
 
-      // Step 2: Get and validate profile
+      // Get and validate profile
       const profile = await getUserProfile(user.id);
 
       if (!profile) {
@@ -136,45 +116,12 @@ const MotoboyDashboard = () => {
       
       if (isMounted) {
         setMotoboyProfile(profile);
-      }
-      
-      // Step 3: Initialize motoboy services safely
-      console.log('[MotoboyDashboard] Initializing motoboy services...');
-      const initResult = await initializeMotoboyServices(profile);
-      
-      if (isMounted) {
-        setServicesInitialized(initResult.success);
-        setPermissionsGranted(initResult.permissionsGranted);
-        
-        // Show warnings if any
-        if (initResult.warnings.length > 0) {
-          console.warn('[MotoboyDashboard] Initialization warnings:', initResult.warnings);
-        }
-        
-        // Handle errors
-        if (!initResult.success) {
-          const errorMsg = initResult.errors.join(', ');
-          setInitializationError(errorMsg);
-          toast.error('Erro ao inicializar serviços de motoboy');
-        } else if (!initResult.permissionsGranted) {
-          toast.warning(
-            'Modo limitado: recursos de localização indisponíveis. Habilite a permissão para usar todas as funcionalidades.',
-            { duration: 6000 }
-          );
-        }
-        
-        // Step 4: Load data
         await calculateStats(user.id);
         await fetchServices();
       }
     } catch (error) {
       console.error('[MotoboyDashboard] Initialization error:', error);
       handleError(error, { customMessage: 'Erro ao inicializar dashboard' });
-      
-      if (isMounted) {
-        setInitializationError(error instanceof Error ? error.message : 'Erro desconhecido');
-        // Don't redirect - allow user to retry
-      }
     } finally {
       if (isMounted) {
         setIsLoading(false);
@@ -182,55 +129,6 @@ const MotoboyDashboard = () => {
     }
   };
 
-  /**
-   * Retry initialization (for manual retry button)
-   */
-  const handleRetryInitialization = async () => {
-    if (!motoboyProfile) {
-      toast.error('Perfil não carregado');
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      setInitializationError(null);
-      
-      const initResult = await retryInitialization(motoboyProfile);
-      
-      if (isMounted) {
-        setServicesInitialized(initResult.success);
-        setPermissionsGranted(initResult.permissionsGranted);
-        
-        if (initResult.success) {
-          toast.success('Serviços inicializados com sucesso!');
-          await fetchServices();
-        } else {
-          setInitializationError(initResult.errors.join(', '));
-        }
-      }
-    } catch (error) {
-      handleError(error, { customMessage: 'Erro ao tentar novamente' });
-    } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  /**
-   * Request location permission manually
-   */
-  const handleRequestPermission = async () => {
-    const granted = await requestLocationPermissionWithFeedback();
-    
-    if (granted && isMounted) {
-      setPermissionsGranted(true);
-      toast.success('Permissão concedida! Reiniciando serviços...');
-      await handleRetryInitialization();
-    } else {
-      showSettingsGuide();
-    }
-  };
 
   const fetchServices = async () => {
     try {
@@ -291,61 +189,17 @@ const MotoboyDashboard = () => {
     }
   };
 
-  const toggleAvailability = async () => {
-    // Check if location permissions are granted
-    if (!permissionsGranted) {
-      toast.error('Permissão de localização necessária para ficar online');
-      
-      // Offer to request permission
-      const granted = await requestLocationPermissionWithFeedback();
-      if (!granted) {
-        return;
-      }
-      setPermissionsGranted(true);
-    }
+  const toggleAvailability = () => {
+    const newStatus = !isAvailable;
+    setIsAvailable(newStatus);
+    haptics.success();
     
-    try {
-      const newStatus = !isAvailable;
-      const success = await setAvailabilityStatus(newStatus);
-      
-      if (success) {
-        setIsAvailable(newStatus);
-        haptics.success();
-        
-        if (newStatus) {
-          toast.success("Você está online! Recebendo corridas próximas.");
-          // Load nearby services when going online
-          loadNearbyServices();
-        } else {
-          toast.success("Você está offline.");
-          setNearbyServices([]);
-        }
-      }
-    } catch (error) {
-      console.error('[MotoboyDashboard] Toggle availability error:', error);
-      handleError(error, { customMessage: 'Erro ao alterar status' });
-    }
-  };
-
-  const loadNearbyServices = async () => {
-    if (!currentLocation) {
-      console.log('[MotoboyDashboard] No current location, skipping nearby services');
-      return;
-    }
-    
-    if (!permissionsGranted) {
-      console.log('[MotoboyDashboard] Location permission not granted, skipping nearby services');
-      return;
-    }
-    
-    try {
-      const services = await getNearbyServices(15); // 15km radius
-      if (isMounted) {
-        setNearbyServices(services || []);
-      }
-    } catch (error) {
-      console.error('[MotoboyDashboard] Error loading nearby services:', error);
-      // Don't show error to user - this is a background operation
+    if (newStatus) {
+      startWatching();
+      toast.success("Você está online!");
+    } else {
+      stopWatching();
+      toast.success("Você está offline.");
     }
   };
 

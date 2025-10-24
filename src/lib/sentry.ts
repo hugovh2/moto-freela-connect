@@ -4,7 +4,6 @@
  */
 
 import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 const ENVIRONMENT = import.meta.env.MODE || 'development';
@@ -23,20 +22,9 @@ export const initSentry = () => {
     Sentry.init({
       dsn: SENTRY_DSN,
       environment: ENVIRONMENT,
-      integrations: [
-        new BrowserTracing(),
-        new Sentry.Replay({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-      ],
       
       // Performance Monitoring
       tracesSampleRate: ENVIRONMENT === 'production' ? 0.1 : 1.0,
-      
-      // Session Replay
-      replaysSessionSampleRate: 0.1,
-      replaysOnErrorSampleRate: 1.0,
       
       // Release tracking
       release: `motofreela@${import.meta.env.VITE_APP_VERSION || '0.0.0'}`,
@@ -199,11 +187,13 @@ export const clearUser = () => {
 };
 
 /**
- * Start a transaction for performance monitoring
+ * Start a span for performance monitoring
  */
-export const startTransaction = (name: string, op: string) => {
-  return Sentry.startTransaction({
+export const startSpan = (name: string, op: string) => {
+  return Sentry.startSpan({
     name,
     op,
+  }, () => {
+    // Span callback
   });
 };

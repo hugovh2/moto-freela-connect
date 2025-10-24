@@ -149,7 +149,13 @@ export const usePushNotifications = () => {
 
     try {
       await PushNotifications.removeDeliveredNotifications({
-        notifications: notificationIds.map(id => ({ id })),
+        notifications: notificationIds.map(id => ({ 
+          id,
+          tag: '',
+          title: '',
+          body: '',
+          data: {}
+        })),
       });
     } catch (error) {
       console.error('Erro ao remover notificações:', error);
