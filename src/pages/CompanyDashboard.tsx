@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentUser, getUserProfile, signOut } from "@/lib/supabase-client";
+import { getCurrentUser, getUserProfile, getUserRole, signOut } from "@/lib/supabase-client";
 import { safeNavigate } from "@/lib/navigation";
 import { handleError } from "@/lib/error-handler";
 import { Button } from "@/components/ui/button";
@@ -83,8 +83,9 @@ const CompanyDashboard = () => {
       }
 
       const profile = await getUserProfile(user.id);
+      const role = await getUserRole(user.id);
 
-      if (!profile) {
+      if (!profile || !role) {
         toast.error('Perfil não encontrado');
         if (isMounted) {
           safeNavigate(navigate, "/auth", { replace: true });
@@ -92,7 +93,7 @@ const CompanyDashboard = () => {
         return;
       }
 
-      if (profile.role !== "company") {
+      if (role !== "company") {
         if (isMounted) {
           safeNavigate(navigate, "/motoboy", { replace: true });
         }

@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { supabase, getCurrentUser, getUserProfile } from '@/lib/supabase-client';
+import { supabase, getCurrentUser, getUserProfile, getUserRole } from '@/lib/supabase-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
@@ -50,20 +50,20 @@ export const ProtectedRoute = ({
       }
 
       // Check user role
-      const profile = await getUserProfile(user.id);
+      const role = await getUserRole(user.id);
 
-      if (!profile) {
-        console.log('[ProtectedRoute] No profile found, redirecting to auth');
+      if (!role) {
+        console.log('[ProtectedRoute] No role found, redirecting to auth');
         setRedirectPath(redirectTo);
         setIsAuthorized(false);
         return;
       }
 
       // Verify role matches
-      if (profile.role !== requiredRole) {
-        console.log(`[ProtectedRoute] Role mismatch: expected ${requiredRole}, got ${profile.role}`);
+      if (role !== requiredRole) {
+        console.log(`[ProtectedRoute] Role mismatch: expected ${requiredRole}, got ${role}`);
         // Redirect to appropriate dashboard
-        const correctPath = profile.role === 'company' ? '/company' : '/motoboy';
+        const correctPath = role === 'company' ? '/company' : '/motoboy';
         setRedirectPath(correctPath);
         setIsAuthorized(false);
         return;
@@ -124,16 +124,16 @@ export const useRequireAuth = (requiredRole?: 'company' | 'motoboy') => {
         return;
       }
 
-      const profile = await getUserProfile(user.id);
+      const role = await getUserRole(user.id);
       
-      if (!profile) {
+      if (!role) {
         setIsAuthorized(false);
         return;
       }
 
-      setUserRole(profile.role);
+      setUserRole(role);
 
-      if (!requiredRole || profile.role === requiredRole) {
+      if (!requiredRole || role === requiredRole) {
         setIsAuthorized(true);
       } else {
         setIsAuthorized(false);

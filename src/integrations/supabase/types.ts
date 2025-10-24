@@ -64,7 +64,6 @@ export type Database = {
           id: string
           phone: string | null
           rating: number | null
-          role: Database["public"]["Enums"]["user_role"]
           total_jobs: number | null
           updated_at: string | null
         }
@@ -76,7 +75,6 @@ export type Database = {
           id: string
           phone?: string | null
           rating?: number | null
-          role: Database["public"]["Enums"]["user_role"]
           total_jobs?: number | null
           updated_at?: string | null
         }
@@ -88,7 +86,6 @@ export type Database = {
           id?: string
           phone?: string | null
           rating?: number | null
-          role?: Database["public"]["Enums"]["user_role"]
           total_jobs?: number | null
           updated_at?: string | null
         }

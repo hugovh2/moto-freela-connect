@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { signInWithEmail, signUpWithEmail, getCurrentUser, getUserProfile } from "@/lib/supabase-client";
+import { signInWithEmail, signUpWithEmail, getCurrentUser, getUserProfile, getUserRole } from "@/lib/supabase-client";
 import { safeNavigate, getDashboardRoute } from "@/lib/navigation";
 import { validateEmail, validatePassword, validateRequired, handleAuthError } from "@/lib/error-handler";
 import { toast } from "sonner";
@@ -31,9 +31,9 @@ const Auth = () => {
     try {
       const user = await getCurrentUser();
       if (user && isMounted) {
-        const profile = await getUserProfile(user.id);
-        if (profile?.role) {
-          const dashboardPath = getDashboardRoute(profile.role);
+        const role = await getUserRole(user.id);
+        if (role) {
+          const dashboardPath = getDashboardRoute(role);
           safeNavigate(navigate, dashboardPath, { replace: true });
         }
       }
@@ -159,10 +159,10 @@ const Auth = () => {
         return;
       }
 
-      // Get user profile to check role
-      const profile = await getUserProfile(data.user.id);
+      // Get user role to check access
+      const role = await getUserRole(data.user.id);
 
-      if (!profile) {
+      if (!role) {
         toast.error('Perfil não encontrado. Entre em contato com o suporte.');
         return;
       }
@@ -175,7 +175,7 @@ const Auth = () => {
       if (isMounted) {
         setTimeout(() => {
           if (isMounted) {
-            const dashboardPath = getDashboardRoute(profile.role);
+            const dashboardPath = getDashboardRoute(role);
             safeNavigate(navigate, dashboardPath, { replace: true });
           }
         }, 1000);

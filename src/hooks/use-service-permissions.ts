@@ -11,15 +11,15 @@ export const useServicePermissions = () => {
       if (user) {
         setUserId(user.id);
         
-        // Get user role from profiles
-        const { data: profile } = await supabase
-          .from('profiles')
+        // Get user role from user_roles table
+        const { data: roleData } = await supabase
+          .from('user_roles')
           .select('role')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
         
-        if (profile) {
-          setUserRole(profile.role);
+        if (roleData) {
+          setUserRole(roleData.role as 'motoboy' | 'company');
         }
       }
     };

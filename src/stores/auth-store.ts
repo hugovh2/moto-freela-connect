@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { getCurrentUser, getUserProfile, signOut as supabaseSignOut } from '@/lib/supabase-client';
+import { getCurrentUser, getUserProfile, getUserRole, signOut as supabaseSignOut } from '@/lib/supabase-client';
 
 export interface UserProfile {
   id: string;
@@ -84,14 +84,15 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const profile = await getUserProfile(currentUser.id);
+          const role = await getUserRole(currentUser.id);
           
-          if (profile) {
+          if (profile && role) {
             setUser({
               id: profile.id,
               email: currentUser.email || '',
               full_name: profile.full_name,
               avatar_url: profile.avatar_url,
-              role: profile.role,
+              role: role,
               phone: profile.phone,
               created_at: profile.created_at,
               updated_at: profile.updated_at,

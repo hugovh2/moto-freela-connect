@@ -273,6 +273,29 @@ export const getUserProfile = async (userId: string) => {
 };
 
 /**
+ * Gets user role from user_roles table
+ */
+export const getUserRole = async (userId: string): Promise<'company' | 'motoboy' | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('[Supabase] Get role error:', error);
+      return null;
+    }
+
+    return data?.role as 'company' | 'motoboy' | null;
+  } catch (error) {
+    console.error('[Supabase] Get role exception:', error);
+    return null;
+  }
+};
+
+/**
  * Checks if user is authenticated
  */
 export const isAuthenticated = async (): Promise<boolean> => {
