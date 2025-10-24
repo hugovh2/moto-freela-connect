@@ -49,6 +49,9 @@
 
 ## ⚙️ Funcionalidades Detalhadas
 
+
+
+
 ### 1. 🔐 Autenticação e Perfis
 
 #### Sistema de Cadastro

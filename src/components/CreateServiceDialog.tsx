@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useHaptics } from "@/hooks/use-haptics";
-import { MapPin, Calculator } from "lucide-react";
+import { useGeolocation } from "@/hooks/use-geolocation";
+import { MapPin, Calculator, Navigation } from "lucide-react";
 
 interface CreateServiceDialogProps {
   open: boolean;
@@ -24,6 +25,13 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const haptics = useHaptics();
+  const { getCurrentPosition } = useGeolocation();
+  
+  // Refs para os campos de coordenadas
+  const pickupLatRef = useRef<HTMLInputElement>(null);
+  const pickupLngRef = useRef<HTMLInputElement>(null);
+  const deliveryLatRef = useRef<HTMLInputElement>(null);
+  const deliveryLngRef = useRef<HTMLInputElement>(null);
   
   const serviceTypes = [
     { value: "documentos", label: "Documentos" },
@@ -70,6 +78,58 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
     }
   };
 
+  const handleGetPickupLocation = async () => {
+    try {
+      toast.loading("Obtendo sua localização...");
+      const position = await getCurrentPosition();
+      
+      if (position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        setPickupCoords({ lat, lng });
+        
+        // Atualizar os campos de input
+        if (pickupLatRef.current) pickupLatRef.current.value = lat.toString();
+        if (pickupLngRef.current) pickupLngRef.current.value = lng.toString();
+        
+        toast.dismiss();
+        toast.success("Localização obtida com sucesso!");
+        haptics.success();
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Erro ao obter localização. Verifique as permissões.");
+      console.error("Geolocation error:", error);
+    }
+  };
+
+  const handleGetDeliveryLocation = async () => {
+    try {
+      toast.loading("Obtendo sua localização...");
+      const position = await getCurrentPosition();
+      
+      if (position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        setDeliveryCoords({ lat, lng });
+        
+        // Atualizar os campos de input
+        if (deliveryLatRef.current) deliveryLatRef.current.value = lat.toString();
+        if (deliveryLngRef.current) deliveryLngRef.current.value = lng.toString();
+        
+        toast.dismiss();
+        toast.success("Localização obtida com sucesso!");
+        haptics.success();
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Erro ao obter localização. Verifique as permissões.");
+      console.error("Geolocation error:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -86,7 +146,6 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
       pickup_lng: pickupCoords?.lng,
       delivery_lat: deliveryCoords?.lat,
       delivery_lng: deliveryCoords?.lng,
-      distance_km: distance,
     };
 
     try {
@@ -169,7 +228,19 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
             
             <div className="grid gap-4">
               <div className="space-y-2">
-                <Label htmlFor="pickup_location">Local de Retirada</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pickup_location">Local de Retirada</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGetPickupLocation}
+                    className="gap-2"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    Usar Minha Localização
+                  </Button>
+                </div>
                 <Input
                   id="pickup_location"
                   name="pickup_location"
@@ -177,25 +248,119 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
                   required
                   className="mb-2"
                 />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="pickup_lat" className="text-xs text-muted-foreground">Latitude</Label>
+                    <Input
+                      ref={pickupLatRef}
+                      id="pickup_lat"
+                      name="pickup_lat"
+                      type="number"
+                      step="any"
+                      placeholder="Ex: -23.5505"
+                      required
+                      onChange={(e) => {
+                        const lat = parseFloat(e.target.value);
+                        if (!isNaN(lat)) {
+                          setPickupCoords(prev => ({ lat, lng: prev?.lng || 0 }));
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pickup_lng" className="text-xs text-muted-foreground">Longitude</Label>
+                    <Input
+                      ref={pickupLngRef}
+                      id="pickup_lng"
+                      name="pickup_lng"
+                      type="number"
+                      step="any"
+                      placeholder="Ex: -46.6333"
+                      required
+                      onChange={(e) => {
+                        const lng = parseFloat(e.target.value);
+                        if (!isNaN(lng)) {
+                          setPickupCoords(prev => ({ lat: prev?.lat || 0, lng }));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="delivery_location">Local de Entrega</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="delivery_location">Local de Entrega</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGetDeliveryLocation}
+                    className="gap-2"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    Usar Minha Localização
+                  </Button>
+                </div>
                 <Input
                   id="delivery_location"
                   name="delivery_location"
                   placeholder="Digite o endereço..."
                   required
                 />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="delivery_lat" className="text-xs text-muted-foreground">Latitude</Label>
+                    <Input
+                      ref={deliveryLatRef}
+                      id="delivery_lat"
+                      name="delivery_lat"
+                      type="number"
+                      step="any"
+                      placeholder="Ex: -23.5505"
+                      required
+                      onChange={(e) => {
+                        const lat = parseFloat(e.target.value);
+                        if (!isNaN(lat)) {
+                          setDeliveryCoords(prev => ({ lat, lng: prev?.lng || 0 }));
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="delivery_lng" className="text-xs text-muted-foreground">Longitude</Label>
+                    <Input
+                      ref={deliveryLngRef}
+                      id="delivery_lng"
+                      name="delivery_lng"
+                      type="number"
+                      step="any"
+                      placeholder="Ex: -46.6333"
+                      required
+                      onChange={(e) => {
+                        const lng = parseFloat(e.target.value);
+                        if (!isNaN(lng)) {
+                          setDeliveryCoords(prev => ({ lat: prev?.lat || 0, lng }));
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Map Preview - Simplified */}
             <Card>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">
-                  Use o Google Maps para obter as coordenadas precisas dos endereços.
+                <p className="text-sm text-muted-foreground mb-2">
+                  <strong>Como obter coordenadas:</strong>
                 </p>
+                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Abra o Google Maps</li>
+                  <li>Clique com o botão direito no local desejado</li>
+                  <li>As coordenadas aparecerão no topo (ex: -23.5505, -46.6333)</li>
+                  <li>Cole a primeira coordenada (Latitude) e a segunda (Longitude)</li>
+                </ol>
               </CardContent>
             </Card>
           </div>
@@ -245,7 +410,15 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !pickupCoords || !deliveryCoords} 
+              disabled={
+                isLoading || 
+                !pickupCoords || 
+                !deliveryCoords || 
+                pickupCoords.lat === 0 || 
+                pickupCoords.lng === 0 || 
+                deliveryCoords.lat === 0 || 
+                deliveryCoords.lng === 0
+              } 
               className="flex-1"
             >
               {isLoading ? "Criando..." : "Criar Serviço"}
