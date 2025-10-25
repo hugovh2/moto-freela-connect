@@ -283,7 +283,6 @@ type UserProfile = {
   created_at: string;
   updated_at: string;
 };
-
 /**
  * Gets user profile from database
  * Retorna um perfil padrão se não encontrar
