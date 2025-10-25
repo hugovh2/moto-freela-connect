@@ -130,9 +130,13 @@ const CompanyDashboard = () => {
       if (allServices) {
         const totalServices = allServices.length;
         const activeServices = allServices.filter(s => 
-          ['available', 'accepted', 'in_progress'].includes(s.status)
+          ['available', 'accepted', 'collected', 'on_route', 'in_progress'].includes(s.status) || 
+          (s.status as any) === 'collected' || 
+          (s.status as any) === 'on_route'
         ).length;
-        const completedServices = allServices.filter(s => s.status === 'completed').length;
+        const completedServices = allServices.filter(s => 
+          s.status === 'completed' || (s.status as any) === 'delivered'
+        ).length;
         const totalSpent = allServices.reduce((sum, s) => sum + (s.price || 0), 0);
         
         // TODO: Calculate average rating when rating fields are added to schema
@@ -414,7 +418,11 @@ const CompanyDashboard = () => {
                   />
                   
                   {/* Live Tracking para serviços ativos */}
-                  {service.motoboy_id && ['accepted', 'in_progress'].includes(service.status) && (
+                  {service.motoboy_id && (
+                    ['accepted', 'collected', 'on_route', 'in_progress'].includes(service.status) || 
+                    (service.status as any) === 'collected' || 
+                    (service.status as any) === 'on_route'
+                  ) && (
                     <div className="grid md:grid-cols-2 gap-4">
                       <LiveTracking
                         serviceId={service.id}

@@ -165,12 +165,12 @@ const MotoboyDashboard = () => {
         setAvailableServices(available || []);
       }
 
-      // Fetch my accepted services
+      // Fetch my accepted services (incluindo todos os status ativos)
       const { data: mine, error: mineError } = await supabase
         .from("services")
         .select("*")
         .eq("motoboy_id", user.id)
-        .in("status", ["accepted", "in_progress"])
+        .in("status", ["accepted", "collected", "on_route", "in_progress"] as any)
         .order("created_at", { ascending: false });
 
       if (mineError) {
@@ -225,21 +225,21 @@ const MotoboyDashboard = () => {
 
       if (allServices) {
         const totalEarnings = allServices
-          .filter(s => s.status === 'completed')
+          .filter(s => s.status === 'completed' || (s.status as any) === 'delivered')
           .reduce((sum, s) => sum + (s.price || 0), 0);
         
         const today = new Date().toISOString().split('T')[0];
         const todayEarnings = allServices
-          .filter(s => s.status === 'completed' && s.completed_at?.startsWith(today))
+          .filter(s => (s.status === 'completed' || (s.status as any) === 'delivered') && (s.completed_at?.startsWith(today) || s.updated_at?.startsWith(today)))
           .reduce((sum, s) => sum + (s.price || 0), 0);
         
-        const totalRides = allServices.filter(s => s.status === 'completed').length;
+        const totalRides = allServices.filter(s => s.status === 'completed' || (s.status as any) === 'delivered').length;
         
         // TODO: Calculate average rating when rating fields are added to schema
         const averageRating = 0;
         
         const acceptedServices = allServices.filter(s => 
-          ['accepted', 'in_progress', 'completed'].includes(s.status)
+          ['accepted', 'collected', 'on_route', 'in_progress', 'completed', 'delivered'].includes(s.status)
         ).length;
         const completionRate = acceptedServices > 0 
           ? (totalRides / acceptedServices) * 100 

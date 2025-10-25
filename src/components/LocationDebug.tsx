@@ -22,22 +22,45 @@ export const LocationDebug = () => {
   const loadMyLocation = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('[LocationDebug] Usuário não autenticado');
+        return;
+      }
 
+      console.log('[LocationDebug] Buscando localização para user:', user.id);
+
+      // Tentar buscar sem .single() primeiro (mais permissivo)
       const { data, error } = await supabase
         .from('user_locations')
         .select('*')
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erro ao carregar localização:', error);
-      } else if (data) {
-        setMyLocation(data);
-        setLastUpdate(new Date(data.updated_at).toLocaleTimeString('pt-BR'));
+      if (error) {
+        console.error('[LocationDebug] Erro ao carregar:', error);
+        
+        // Erro 406 geralmente significa problema de RLS ou tabela não existe
+        if (error.code === '406' || error.message.includes('406')) {
+          console.error('[LocationDebug] ⚠️ Erro 406: Tabela pode não existir ou RLS bloqueando');
+          console.error('[LocationDebug] Execute: supabase/FIX_REALTIME.sql');
+        }
+        
+        // PGRST116 = não encontrou registro (ok, ainda não enviou)
+        if (error.code !== 'PGRST116') {
+          toast.error('Erro ao carregar localização. Veja o console.');
+        }
+        return;
       }
-    } catch (error) {
-      console.error('Erro:', error);
+
+      if (data && data.length > 0) {
+        console.log('[LocationDebug] ✅ Localização encontrada:', data[0]);
+        setMyLocation(data[0]);
+        setLastUpdate(new Date(data[0].updated_at).toLocaleTimeString('pt-BR'));
+      } else {
+        console.log('[LocationDebug] Nenhuma localização salva ainda');
+      }
+    } catch (error: any) {
+      console.error('[LocationDebug] Erro catch:', error);
+      toast.error(`Erro: ${error.message}`);
     }
   };
 
@@ -54,7 +77,10 @@ export const LocationDebug = () => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const { error } = await (supabase.rpc as any)('upsert_user_location', {
+            console.log('[LocationDebug] Tentando enviar localização completa...');
+            
+            // Tentar com todas as colunas primeiro
+            let { error } = await (supabase.rpc as any)('upsert_user_location', {
               p_user_id: user.id,
               p_latitude: position.coords.latitude,
               p_longitude: position.coords.longitude,
@@ -63,15 +89,36 @@ export const LocationDebug = () => {
               p_heading: position.coords.heading
             });
 
+            // Se erro 42703 (coluna não existe), tentar insert direto sem colunas opcionais
+            if (error && error.code === '42703') {
+              console.warn('[LocationDebug] ⚠️ Colunas opcionais não existem, tentando apenas lat/lng...');
+              console.warn('[LocationDebug] Execute: supabase/FIX_COLUNAS_FALTANTES.sql');
+              
+              // Fallback: insert direto com apenas lat/lng
+              const { error: insertError } = await supabase
+                .from('user_locations')
+                .upsert({
+                  user_id: user.id,
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  updated_at: new Date().toISOString()
+                }, {
+                  onConflict: 'user_id'
+                });
+              
+              error = insertError;
+            }
+
             if (error) {
-              console.error('Erro RPC:', error);
+              console.error('[LocationDebug] Erro final:', error);
               toast.error(`Erro ao enviar: ${error.message}`);
             } else {
+              console.log('[LocationDebug] ✅ Localização enviada com sucesso!');
               toast.success('Localização enviada!');
               loadMyLocation();
             }
           } catch (error: any) {
-            console.error('Erro ao enviar:', error);
+            console.error('[LocationDebug] Erro catch:', error);
             toast.error(`Erro: ${error.message}`);
           }
         },

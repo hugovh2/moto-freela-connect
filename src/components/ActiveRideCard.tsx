@@ -5,19 +5,24 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   MapPin, 
-  Phone, 
+  Package,
   Camera, 
   CheckCircle, 
   AlertTriangle,
   Timer,
   Navigation,
   MessageSquare,
-  Clock
+  Clock,
+  Truck,
+  DollarSign,
+  CheckCheck,
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { LiveTracking } from '@/components/LiveTracking';
 
 interface ActiveRideCardProps {
   service: {
@@ -47,6 +52,9 @@ export const ActiveRideCard = ({
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
 
   // Timer de corrida
   useEffect(() => {
@@ -72,29 +80,54 @@ export const ActiveRideCard = ({
   // Progresso baseado no status
   const getProgress = () => {
     switch (service.status) {
+      case 'pending': return 0;
       case 'accepted': return 25;
       case 'collected': return 50;
-      case 'in_progress': return 75;
-      case 'completed': return 100;
+      case 'on_route': return 75;
+      case 'delivered': return 100;
       default: return 0;
     }
   };
 
   const getStatusText = () => {
     switch (service.status) {
-      case 'accepted': return 'Indo buscar';
-      case 'collected': return 'Item coletado';
-      case 'in_progress': return 'Em entrega';
-      case 'completed': return 'Concluído';
+      case 'pending': return 'Aguardando Coleta';
+      case 'accepted': return 'Aceito';
+      case 'collected': return 'Coletado';
+      case 'on_route': return 'A Caminho';
+      case 'delivered': return 'Entregue';
       default: return service.status;
+    }
+  };
+
+  const getStatusBadgeVariant = () => {
+    switch (service.status) {
+      case 'pending': return 'secondary';
+      case 'accepted': return 'default';
+      case 'collected': return 'default';
+      case 'on_route': return 'default';
+      case 'delivered': return 'default';
+      default: return 'secondary';
     }
   };
 
   const getNextAction = () => {
     switch (service.status) {
-      case 'accepted': return { text: 'Confirmar Coleta', nextStatus: 'collected' };
-      case 'collected': return { text: 'Iniciar Entrega', nextStatus: 'in_progress' };
-      case 'in_progress': return { text: 'Concluir Entrega', nextStatus: 'completed' };
+      case 'pending':
+      case 'accepted':
+        return { 
+          text: 'Coletar Pedido', 
+          icon: Package, 
+          nextStatus: 'collected',
+          description: 'Confirmar que coletou o pedido'
+        };
+      case 'on_route':
+        return { 
+          text: 'Entregar', 
+          icon: CheckCheck, 
+          nextStatus: 'delivered',
+          description: 'Confirmar entrega ao cliente'
+        };
       default: return null;
     }
   };
@@ -179,33 +212,156 @@ export const ActiveRideCard = ({
     }
   };
 
-  // Atualizar status da corrida
-  const updateRideStatus = async (newStatus: string) => {
+  // Creditar valor ao motoboy
+  const creditMotoboyWallet = async (amount: number): Promise<boolean> => {
     try {
-      // Validar enum antes de enviar
-      const validStatuses = ['available', 'accepted', 'collected', 'in_progress', 'completed', 'cancelled'];
-      if (!validStatuses.includes(newStatus)) {
-        throw new Error(`Status inválido: ${newStatus}. Use um dos valores: ${validStatuses.join(', ')}`);
+      console.log('[ActiveRideCard] Creditando motoboy...', { serviceId: service.id, amount });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // Inserir transação na wallet
+      const { error: transactionError } = await (supabase as any)
+        .from('transactions')
+        .insert({
+          user_id: service.motoboy_id,
+          amount: amount,
+          type: 'credit',
+          description: `Corrida #${service.id.slice(0, 8)} - ${service.title}`,
+          service_id: service.id,
+          status: 'completed'
+        });
+
+      if (transactionError) {
+        console.error('[ActiveRideCard] Erro ao criar transação:', transactionError);
+        throw new Error('Erro ao processar pagamento');
       }
 
-      // Atualiza apenas o status para evitar 400 quando colunas extras não existem
-      const updates: any = { status: newStatus };
+      console.log('[ActiveRideCard] ✅ Transação criada com sucesso');
+      return true;
+    } catch (error: any) {
+      console.error('[ActiveRideCard] Erro ao creditar:', error);
+      toast.error(error.message || 'Erro ao processar pagamento');
+      return false;
+    }
+  };
 
+  // Atualizar status da corrida com lógica de transição
+  const updateRideStatus = async (newStatus: string) => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+    try {
+      console.log('[ActiveRideCard] Atualizando status:', { from: service.status, to: newStatus });
+
+      // Validar transição
+      const validStatuses = ['pending', 'accepted', 'collected', 'on_route', 'delivered', 'cancelled'];
+      if (!validStatuses.includes(newStatus)) {
+        throw new Error(`Status inválido: ${newStatus}`);
+      }
+
+      // Atualizar status no banco
       const { error } = await supabase
         .from('services')
-        .update(updates)
+        .update({ 
+          status: newStatus as any,
+          updated_at: new Date().toISOString()
+        } as any)
         .eq('id', service.id);
 
       if (error) {
-        console.error('Supabase update error:', error);
+        console.error('[ActiveRideCard] Erro Supabase:', error);
         throw new Error(`Erro ao atualizar: ${error.message}`);
       }
 
-      toast.success(`Status atualizado: ${getStatusText()}`);
-      onUpdate();
+      // Feedback por status
+      if (newStatus === 'collected') {
+        toast.success('✅ Pedido coletado!');
+        
+        // Transição automática para on_route após 1.5s
+        setTimeout(async () => {
+          console.log('[ActiveRideCard] Transição automática: collected → on_route');
+          await updateToOnRoute();
+        }, 1500);
+        // NÃO chamar onUpdate aqui - mantém o card visível
+      } else if (newStatus === 'delivered') {
+        await handleDeliveryComplete();
+      } else {
+        toast.success(`Status atualizado: ${getStatusText()}`);
+        // NÃO chamar onUpdate aqui - evita card desaparecer prematuramente
+      }
     } catch (error: any) {
-      console.error('Erro ao atualizar status:', error);
+      console.error('[ActiveRideCard] Erro:', error);
       toast.error(error.message || 'Erro ao atualizar status');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Transição automática para on_route
+  const updateToOnRoute = async () => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ 
+          status: 'on_route' as any,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq('id', service.id);
+
+      if (error) throw error;
+
+      toast.success('🚴 A caminho da entrega!');
+      // NÃO chamar onUpdate() - mantém card visível durante entrega
+      // Forçar re-render local apenas
+      setIsProcessing(false);
+    } catch (error: any) {
+      console.error('[ActiveRideCard] Erro na transição automática:', error);
+    }
+  };
+
+  // Completar entrega com crédito
+  const handleDeliveryComplete = async () => {
+    setIsCompleting(true);
+    try {
+      toast.loading('Processando entrega...');
+
+      // 1. Creditar motoboy (APENAS se for motoboy)
+      if (isMotoboy) {
+        const credited = await creditMotoboyWallet(service.price);
+        if (!credited) {
+          throw new Error('Falha ao processar pagamento');
+        }
+      }
+
+      toast.dismiss();
+      
+      if (isMotoboy) {
+        toast.success(
+          `🎉 Entrega concluída! R$ ${service.price.toFixed(2)} creditado`,
+          { duration: 5000 }
+        );
+
+        // 2. Animação de fade out (APENAS para motoboy)
+        setTimeout(() => {
+          setFadeOut(true);
+        }, 2000);
+
+        // 3. Remover card da UI após animação (APENAS para motoboy)
+        setTimeout(() => {
+          onUpdate(); // Recarrega lista - card não voltará pois status=delivered
+        }, 2500);
+      } else {
+        // Empresa apenas vê feedback
+        toast.success('✅ Entrega concluída com sucesso!', { duration: 3000 });
+        // Card permanece visível para empresa
+      }
+    } catch (error: any) {
+      toast.dismiss();
+      console.error('[ActiveRideCard] Erro ao completar:', error);
+      toast.error(error.message || 'Erro ao completar entrega');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -237,13 +393,37 @@ export const ActiveRideCard = ({
 
   const nextAction = getNextAction();
 
+  // Não renderizar apenas se for MOTOBOY, entregue e fadeOut
+  if (isMotoboy && service.status === 'delivered' && fadeOut) {
+    return null;
+  }
+
   return (
-    <Card className="border-2 border-primary">
+    <Card 
+      className={`border-2 border-primary transition-all duration-500 ${
+        fadeOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      } ${
+        isCompleting ? 'animate-pulse' : ''
+      }`}
+    >
       <CardHeader>
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <CardTitle className="text-lg">{service.title}</CardTitle>
-            <Badge variant="secondary">{getStatusText()}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={getStatusBadgeVariant()}>
+                {service.status === 'on_route' && <Truck className="h-3 w-3 mr-1" />}
+                {service.status === 'collected' && <Package className="h-3 w-3 mr-1" />}
+                {service.status === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
+                {getStatusText()}
+              </Badge>
+              {isCompleting && (
+                <Badge variant="default" className="bg-green-500">
+                  <DollarSign className="h-3 w-3 mr-1" />
+                  Creditando...
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="text-right">
             <div className="flex items-center gap-2 text-2xl font-bold text-primary">
@@ -263,12 +443,17 @@ export const ActiveRideCard = ({
       <CardContent className="space-y-4">
         {/* Progress Bar */}
         <div className="space-y-2">
-          <Progress value={getProgress()} className="h-2" />
+          <Progress 
+            value={getProgress()} 
+            className={`h-2 transition-all ${
+              service.status === 'delivered' ? 'bg-green-200' : ''
+            }`} 
+          />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Aceito</span>
-            <span>Coletado</span>
-            <span>Em entrega</span>
-            <span>Concluído</span>
+            <span className={service.status === 'pending' || service.status === 'accepted' ? 'font-semibold text-primary' : ''}>Aceito</span>
+            <span className={service.status === 'collected' ? 'font-semibold text-primary' : ''}>Coletado</span>
+            <span className={service.status === 'on_route' ? 'font-semibold text-primary' : ''}>A Caminho</span>
+            <span className={service.status === 'delivered' ? 'font-semibold text-green-600' : ''}>Entregue</span>
           </div>
         </div>
 
@@ -355,13 +540,127 @@ export const ActiveRideCard = ({
 
             {/* Próxima Ação */}
             {nextAction && (
-              <Button
-                className="w-full"
-                onClick={() => updateRideStatus(nextAction.nextStatus)}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {nextAction.text}
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  className="w-full relative overflow-hidden group"
+                  onClick={() => updateRideStatus(nextAction.nextStatus)}
+                  disabled={isProcessing || isCompleting}
+                  size="lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <nextAction.icon className="h-5 w-5 mr-2" />
+                      {nextAction.text}
+                    </>
+                  )}
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  {nextAction.description}
+                </p>
+              </div>
+            )}
+
+            {/* Feedback de entrega concluída */}
+            {service.status === 'delivered' && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg animate-bounce-in">
+                <div className="flex items-center gap-3">
+                  <CheckCheck className="h-8 w-8 text-green-600" />
+                  <div>
+                    <p className="font-semibold text-green-700 dark:text-green-400">
+                      Entrega Concluída!
+                    </p>
+                    <p className="text-sm text-green-600 dark:text-green-500">
+                      R$ {service.price.toFixed(2)} creditado na sua carteira
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Visualização para EMPRESA - Rastreamento em Tempo Real */}
+        {!isMotoboy && (
+          <div className="space-y-4">
+            {/* Status em Destaque */}
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-900 dark:text-blue-100">Status da Entrega</h3>
+                </div>
+                <Badge variant="outline" className="bg-white dark:bg-slate-800">
+                  {service.status === 'on_route' && <Truck className="h-3 w-3 mr-1 animate-pulse" />}
+                  {service.status === 'collected' && <Package className="h-3 w-3 mr-1" />}
+                  {service.status === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
+                  {getStatusText()}
+                </Badge>
+              </div>
+              
+              {/* Mensagens por status */}
+              {service.status === 'pending' && (
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  ⏳ Aguardando motoboy coletar o pedido...
+                </p>
+              )}
+              {service.status === 'accepted' && (
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  🏃 Motoboy a caminho da coleta...
+                </p>
+              )}
+              {service.status === 'collected' && (
+                <p className="text-sm text-blue-700 dark:text-blue-300 animate-pulse">
+                  📦 Pedido coletado! Preparando rota...
+                </p>
+              )}
+              {service.status === 'on_route' && (
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  🚴 Motoboy a caminho da entrega! Acompanhe no mapa abaixo.
+                </p>
+              )}
+              {service.status === 'delivered' && (
+                <div className="space-y-2">
+                  <p className="text-sm text-green-700 dark:text-green-300 font-semibold">
+                    ✅ Pedido entregue com sucesso!
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    Obrigado por usar nosso serviço!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Rastreamento em Tempo Real */}
+            {(service.status === 'on_route' || service.status === 'collected') && (
+              <LiveTracking
+                serviceId={service.id}
+                motoboyId={service.motoboy_id}
+                pickupLocation={service.pickup_location}
+                deliveryLocation={service.delivery_location}
+              />
+            )}
+
+            {/* Informações Adicionais para Empresa */}
+            {service.status === 'delivered' && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <CheckCheck className="h-8 w-8 text-green-600" />
+                  <div>
+                    <p className="font-semibold text-green-700 dark:text-green-400">
+                      Entrega Concluída!
+                    </p>
+                    <p className="text-sm text-green-600 dark:text-green-500">
+                      Valor pago: R$ {service.price.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -89,7 +89,8 @@ const LocationTracker = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await (supabase.rpc as any)('upsert_user_location', {
+      // Tentar com todas as colunas primeiro
+      let { error } = await (supabase.rpc as any)('upsert_user_location', {
         p_user_id: user.id,
         p_latitude: location.latitude,
         p_longitude: location.longitude,
@@ -97,8 +98,30 @@ const LocationTracker = ({
         p_speed: location.speed || null,
         p_heading: location.heading || null
       });
+
+      // Fallback se colunas não existirem
+      if (error && error.code === '42703') {
+        console.warn('[LocationTracker] ⚠️ Colunas opcionais não existem, usando fallback...');
+        
+        const { error: insertError } = await supabase
+          .from('user_locations')
+          .upsert({
+            user_id: user.id,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          });
+        
+        if (insertError) {
+          console.error('[LocationTracker] Erro no fallback:', insertError);
+        }
+      } else if (error) {
+        console.error('[LocationTracker] Erro ao enviar localização:', error);
+      }
     } catch (error) {
-      console.error('Erro ao atualizar localização no Supabase:', error);
+      console.error('[LocationTracker] Erro catch:', error);
     }
   };
 
