@@ -52,6 +52,7 @@ const Auth = () => {
     const email = (formData.get("email") as string)?.trim();
     const password = formData.get("password") as string;
     const fullName = (formData.get("fullName") as string)?.trim();
+    const userRole = role; // Armazena a role selecionada
 
     // Validate required fields
     const requiredError = validateRequired(
@@ -80,9 +81,10 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
+      // Passa a role correta para o cadastro
       const { data, error } = await signUpWithEmail(email, password, {
         full_name: fullName,
-        role: role,
+        role: userRole, // Usa a role armazenada
       });
 
       if (error) {
@@ -90,10 +92,14 @@ const Auth = () => {
         return;
       }
 
-      if (!data.user) {
+      if (!data?.user) {
         toast.error('Erro ao criar conta. Tente novamente.');
         return;
       }
+
+      // Verifica se o perfil foi criado com a role correta
+      const userProfile = await getUserProfile(data.user.id);
+      const finalRole = userProfile?.role || userRole;
 
       toast.success("Conta criada com sucesso! Redirecionando...", {
         duration: 2000,
@@ -103,7 +109,8 @@ const Auth = () => {
       if (isMounted) {
         setTimeout(() => {
           if (isMounted) {
-            const dashboardPath = getDashboardRoute(role);
+            const dashboardPath = getDashboardRoute(finalRole);
+            console.log(`[Auth] Redirecionando para: ${dashboardPath} (role: ${finalRole})`);
             safeNavigate(navigate, dashboardPath, { replace: true });
           }
         }, 1500);

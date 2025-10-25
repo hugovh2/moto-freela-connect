@@ -113,6 +113,13 @@ export const ActiveRideCard = ({
 
   const getNextAction = () => {
     switch (service.status) {
+      case 'available':
+        return {
+          text: 'Aceitar Corrida',
+          icon: CheckCircle,
+          nextStatus: 'accepted',
+          description: 'Aceitar a corrida e iniciar o serviço'
+        };
       case 'pending':
       case 'accepted':
         return { 
@@ -255,18 +262,23 @@ export const ActiveRideCard = ({
       console.log('[ActiveRideCard] Atualizando status:', { from: service.status, to: newStatus });
 
       // Validar transição
-      const validStatuses = ['pending', 'accepted', 'collected', 'on_route', 'delivered', 'cancelled'];
+      const validStatuses = ['available', 'pending', 'accepted', 'collected', 'on_route', 'delivered', 'cancelled'];
       if (!validStatuses.includes(newStatus)) {
         throw new Error(`Status inválido: ${newStatus}`);
       }
 
       // Atualizar status no banco
+      let updateObj: any = { status: newStatus, updated_at: new Date().toISOString() };
+      // Se aceitando corrida, definir motoboy_id
+      if (newStatus === 'accepted') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Usuário não autenticado');
+        updateObj.motoboy_id = user.id;
+      }
+
       const { error } = await supabase
         .from('services')
-        .update({ 
-          status: newStatus as any,
-          updated_at: new Date().toISOString()
-        } as any)
+        .update(updateObj)
         .eq('id', service.id);
 
       if (error) {
@@ -275,20 +287,19 @@ export const ActiveRideCard = ({
       }
 
       // Feedback por status
-      if (newStatus === 'collected') {
+      if (newStatus === 'accepted') {
+        toast.success('Corrida aceita com sucesso!');
+        onUpdate();
+      } else if (newStatus === 'collected') {
         toast.success('✅ Pedido coletado!');
-        
-        // Transição automática para on_route após 1.5s
         setTimeout(async () => {
           console.log('[ActiveRideCard] Transição automática: collected → on_route');
           await updateToOnRoute();
         }, 1500);
-        // NÃO chamar onUpdate aqui - mantém o card visível
       } else if (newStatus === 'delivered') {
         await handleDeliveryComplete();
       } else {
         toast.success(`Status atualizado: ${getStatusText()}`);
-        // NÃO chamar onUpdate aqui - evita card desaparecer prematuramente
       }
     } catch (error: any) {
       console.error('[ActiveRideCard] Erro:', error);

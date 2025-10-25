@@ -155,6 +155,7 @@ export const signInWithEmail = async (email: string, password: string) => {
 
 /**
  * Signs up with email and password
+ * Retorna o usuário autenticado em caso de sucesso
  */
 export const signUpWithEmail = async (
   email: string,
@@ -162,21 +163,86 @@ export const signUpWithEmail = async (
   metadata?: Record<string, any>
 ) => {
   try {
-    const { data, error } = await supabase.auth.signUp({
+    // Garantir que os metadados estejam no formato correto
+    const role = metadata?.role || 'motoboy';
+    const userMetadata = {
+      full_name: metadata?.full_name || 'Usuário',
+      role: role,
+      ...metadata
+    };
+
+    console.log('[Supabase] Criando conta com role:', role);
+
+    // 1. Criar conta no Auth
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: metadata,
+        data: userMetadata,
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
 
-    if (error) {
-      handleAuthError(error, 'sign-up');
-      return { data: null, error };
+    if (signUpError) {
+      console.error('[Supabase] Sign up error:', signUpError);
+      handleAuthError(signUpError, 'sign-up');
+      return { data: null, error: signUpError };
     }
 
-    return { data, error: null };
+    // 2. Se a conta foi criada com sucesso, fazer login
+    if (signUpData.user) {
+      // 2.1 Garantir que o perfil foi criado com a role correta
+      const userId = signUpData.user.id;
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: email,
+          full_name: userMetadata.full_name,
+          role: role,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id'
+        });
+
+      if (profileError) {
+        console.error('[Supabase] Error updating profile role:', profileError);
+      }
+
+      // 2.2 Fazer login
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        console.error('[Supabase] Auto login after signup failed:', signInError);
+        return { data: signUpData, error: signInError };
+      }
+
+      // 3. Buscar o perfil completo do usuário
+      const userProfile = await getUserProfile(userId);
+      
+      console.log('[Supabase] Usuário autenticado com sucesso:', {
+        userId,
+        role: userProfile?.role || 'não definido',
+        userMetadata: signInData.user?.user_metadata
+      });
+      
+      return { 
+        data: { 
+          ...signInData, 
+          profile: {
+            ...userProfile,
+            // Garante que a role está correta
+            role: role
+          }
+        }, 
+        error: null 
+      };
+    }
+
+    return { data: signUpData, error: null };
   } catch (error) {
     console.error('[Supabase] Sign up exception:', error);
     handleNetworkError(error);
@@ -204,23 +270,81 @@ export const signOut = async () => {
   }
 };
 
+// Definindo o tipo do perfil do usuário
+type UserProfile = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: 'company' | 'motoboy' | 'admin' | 'moderator';
+  phone?: string;
+  avatar_url?: string;
+  rating?: number;
+  total_jobs?: number;
+  created_at: string;
+  updated_at: string;
+};
+
 /**
  * Gets user profile from database
+ * Retorna um perfil padrão se não encontrar
  */
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  if (!userId) return null;
+  
   try {
+    // Primeiro tenta buscar da tabela profiles
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('[Supabase] Get profile error:', error);
-      return null;
+    // Se encontrar, retorna o perfil
+    if (!error && data) {
+      // Garante que o perfil tenha uma role válida
+      const profile = data as any;
+      return {
+        id: profile.id,
+        email: profile.email || '',
+        full_name: profile.full_name || 'Usuário',
+        role: profile.role || 'motoboy',
+        phone: profile.phone,
+        avatar_url: profile.avatar_url,
+        rating: profile.rating,
+        total_jobs: profile.total_jobs,
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.updated_at || new Date().toISOString()
+      };
     }
 
-    return data;
+    // Se não encontrar, tenta obter os dados do usuário autenticado
+    console.warn('[Supabase] Profile not found, creating default profile for user:', userId);
+    
+    const { data: authData } = await supabase.auth.getUser();
+    const userEmail = authData.user?.email || '';
+    const userName = authData.user?.user_metadata?.full_name || 'Usuário';
+    const userRole = authData.user?.user_metadata?.role || 'motoboy';
+    
+    // Cria um perfil padrão
+    const defaultProfile: UserProfile = {
+      id: userId,
+      email: userEmail,
+      full_name: userName,
+      role: userRole,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Tenta inserir o perfil padrão
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .upsert(defaultProfile);
+      
+    if (insertError) {
+      console.error('[Supabase] Error creating default profile:', insertError);
+    }
+    
+    return defaultProfile;
   } catch (error) {
     console.error('[Supabase] Get profile exception:', error);
     return null;
@@ -228,22 +352,47 @@ export const getUserProfile = async (userId: string) => {
 };
 
 /**
- * Gets user role from user_roles table
+ * Gets user role from profiles table
  */
-export const getUserRole = async (userId: string): Promise<'company' | 'motoboy' | null> => {
+export const getUserRole = async (userId: string): Promise<'company' | 'motoboy' | 'admin' | 'moderator' | null> => {
+  if (!userId) return null;
+  
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
+    // Primeiro tenta buscar da tabela user_roles (se existir)
+    try {
+      const { data: userRole, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
 
-    if (error) {
-      console.error('[Supabase] Get role error:', error);
-      return null;
+      if (!roleError && userRole?.role) {
+        return userRole.role as any;
+      }
+    } catch (e) {
+      console.warn('[Supabase] Error querying user_roles table, falling back to profiles table');
     }
 
-    return data?.role as 'company' | 'motoboy' | null;
+    // Se não encontrar em user_roles, tenta buscar do perfil
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      console.warn('[Supabase] Profile not found, using default role (motoboy)');
+      return 'motoboy';
+    }
+
+    // Verifica se a role existe no perfil (usando type assertion para evitar erros de tipo)
+    const profileWithRole = profile as any;
+    if (profileWithRole.role) {
+      return profileWithRole.role as 'company' | 'motoboy' | 'admin' | 'moderator';
+    }
+    
+    // Se não encontrar a role, retorna o valor padrão
+    return 'motoboy';
   } catch (error) {
     console.error('[Supabase] Get role exception:', error);
     return null;
