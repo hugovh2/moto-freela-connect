@@ -24,7 +24,11 @@ interface ServiceCardProps {
 }
 
 const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardProps) => {
-  const { canAcceptService, canUpdateService } = useServicePermissions();
+  const { canAcceptService, canUpdateService, userRole, userId } = useServicePermissions();
+  
+  console.log('[ServiceCard] Props:', { isMotoboy, isCompany });
+  console.log('[ServiceCard] Service:', { id: service.id, status: service.status, motoboy_id: service.motoboy_id });
+  console.log('[ServiceCard] Permissions:', { userRole, userId, canAccept: canAcceptService(service) });
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":

@@ -77,9 +77,26 @@ export const ActiveRideCard = ({
     return () => clearInterval(interval);
   }, [service.accepted_at]);
 
-  // Progresso baseado no status
+  // Normalizar status para evitar problemas com diferentes valores
+  const normalizeStatus = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'available': 'pending',
+      'in_progress': 'collected',
+      'completed': 'delivered',
+      'pending': 'pending',
+      'accepted': 'accepted',
+      'collected': 'collected',
+      'on_route': 'on_route',
+      'delivered': 'delivered'
+    };
+    return statusMap[status] || status;
+  };
+
+  const normalizedStatus = normalizeStatus(service.status);
+
+  // Progresso baseado no status normalizado
   const getProgress = () => {
-    switch (service.status) {
+    switch (normalizedStatus) {
       case 'pending': return 0;
       case 'accepted': return 25;
       case 'collected': return 50;
@@ -90,7 +107,7 @@ export const ActiveRideCard = ({
   };
 
   const getStatusText = () => {
-    switch (service.status) {
+    switch (normalizedStatus) {
       case 'pending': return 'Aguardando Coleta';
       case 'accepted': return 'Aceito';
       case 'collected': return 'Coletado';
@@ -101,7 +118,7 @@ export const ActiveRideCard = ({
   };
 
   const getStatusBadgeVariant = () => {
-    switch (service.status) {
+    switch (normalizedStatus) {
       case 'pending': return 'secondary';
       case 'accepted': return 'default';
       case 'collected': return 'default';
@@ -112,14 +129,7 @@ export const ActiveRideCard = ({
   };
 
   const getNextAction = () => {
-    switch (service.status) {
-      case 'available':
-        return {
-          text: 'Aceitar Corrida',
-          icon: CheckCircle,
-          nextStatus: 'accepted',
-          description: 'Aceitar a corrida e iniciar o serviço'
-        };
+    switch (normalizedStatus) {
       case 'pending':
       case 'accepted':
         return { 
@@ -262,23 +272,18 @@ export const ActiveRideCard = ({
       console.log('[ActiveRideCard] Atualizando status:', { from: service.status, to: newStatus });
 
       // Validar transição
-      const validStatuses = ['available', 'pending', 'accepted', 'collected', 'on_route', 'delivered', 'cancelled'];
+      const validStatuses = ['pending', 'accepted', 'collected', 'on_route', 'delivered', 'cancelled'];
       if (!validStatuses.includes(newStatus)) {
         throw new Error(`Status inválido: ${newStatus}`);
       }
 
       // Atualizar status no banco
-      let updateObj: any = { status: newStatus, updated_at: new Date().toISOString() };
-      // Se aceitando corrida, definir motoboy_id
-      if (newStatus === 'accepted') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Usuário não autenticado');
-        updateObj.motoboy_id = user.id;
-      }
-
       const { error } = await supabase
         .from('services')
-        .update(updateObj)
+        .update({ 
+          status: newStatus as any,
+          updated_at: new Date().toISOString()
+        } as any)
         .eq('id', service.id);
 
       if (error) {
@@ -287,19 +292,20 @@ export const ActiveRideCard = ({
       }
 
       // Feedback por status
-      if (newStatus === 'accepted') {
-        toast.success('Corrida aceita com sucesso!');
-        onUpdate();
-      } else if (newStatus === 'collected') {
+      if (newStatus === 'collected') {
         toast.success('✅ Pedido coletado!');
+        
+        // Transição automática para on_route após 1.5s
         setTimeout(async () => {
           console.log('[ActiveRideCard] Transição automática: collected → on_route');
           await updateToOnRoute();
         }, 1500);
+        // NÃO chamar onUpdate aqui - mantém o card visível
       } else if (newStatus === 'delivered') {
         await handleDeliveryComplete();
       } else {
         toast.success(`Status atualizado: ${getStatusText()}`);
+        // NÃO chamar onUpdate aqui - evita card desaparecer prematuramente
       }
     } catch (error: any) {
       console.error('[ActiveRideCard] Erro:', error);
@@ -405,7 +411,7 @@ export const ActiveRideCard = ({
   const nextAction = getNextAction();
 
   // Não renderizar apenas se for MOTOBOY, entregue e fadeOut
-  if (isMotoboy && service.status === 'delivered' && fadeOut) {
+  if (isMotoboy && normalizedStatus === 'delivered' && fadeOut) {
     return null;
   }
 
@@ -423,9 +429,9 @@ export const ActiveRideCard = ({
             <CardTitle className="text-lg">{service.title}</CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant={getStatusBadgeVariant()}>
-                {service.status === 'on_route' && <Truck className="h-3 w-3 mr-1" />}
-                {service.status === 'collected' && <Package className="h-3 w-3 mr-1" />}
-                {service.status === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
+                {normalizedStatus === 'on_route' && <Truck className="h-3 w-3 mr-1" />}
+                {normalizedStatus === 'collected' && <Package className="h-3 w-3 mr-1" />}
+                {normalizedStatus === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
                 {getStatusText()}
               </Badge>
               {isCompleting && (
@@ -457,14 +463,14 @@ export const ActiveRideCard = ({
           <Progress 
             value={getProgress()} 
             className={`h-2 transition-all ${
-              service.status === 'delivered' ? 'bg-green-200' : ''
+              normalizedStatus === 'delivered' ? 'bg-green-200' : ''
             }`} 
           />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span className={service.status === 'pending' || service.status === 'accepted' ? 'font-semibold text-primary' : ''}>Aceito</span>
-            <span className={service.status === 'collected' ? 'font-semibold text-primary' : ''}>Coletado</span>
-            <span className={service.status === 'on_route' ? 'font-semibold text-primary' : ''}>A Caminho</span>
-            <span className={service.status === 'delivered' ? 'font-semibold text-green-600' : ''}>Entregue</span>
+            <div className="flex justify-between text-xs text-muted-foreground">
+            <span className={normalizedStatus === 'pending' || normalizedStatus === 'accepted' ? 'font-semibold text-primary' : ''}>Aceito</span>
+            <span className={normalizedStatus === 'collected' ? 'font-semibold text-primary' : ''}>Coletado</span>
+            <span className={normalizedStatus === 'on_route' ? 'font-semibold text-primary' : ''}>A Caminho</span>
+            <span className={normalizedStatus === 'delivered' ? 'font-semibold text-green-600' : ''}>Entregue</span>
           </div>
         </div>
 
@@ -578,7 +584,7 @@ export const ActiveRideCard = ({
             )}
 
             {/* Feedback de entrega concluída */}
-            {service.status === 'delivered' && (
+            {normalizedStatus === 'delivered' && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg animate-bounce-in">
                 <div className="flex items-center gap-3">
                   <CheckCheck className="h-8 w-8 text-green-600" />
@@ -607,35 +613,35 @@ export const ActiveRideCard = ({
                   <h3 className="font-semibold text-blue-900 dark:text-blue-100">Status da Entrega</h3>
                 </div>
                 <Badge variant="outline" className="bg-white dark:bg-slate-800">
-                  {service.status === 'on_route' && <Truck className="h-3 w-3 mr-1 animate-pulse" />}
-                  {service.status === 'collected' && <Package className="h-3 w-3 mr-1" />}
-                  {service.status === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
+                  {normalizedStatus === 'on_route' && <Truck className="h-3 w-3 mr-1 animate-pulse" />}
+                  {normalizedStatus === 'collected' && <Package className="h-3 w-3 mr-1" />}
+                  {normalizedStatus === 'delivered' && <CheckCheck className="h-3 w-3 mr-1" />}
                   {getStatusText()}
                 </Badge>
               </div>
               
               {/* Mensagens por status */}
-              {service.status === 'pending' && (
+              {normalizedStatus === 'pending' && (
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   ⏳ Aguardando motoboy coletar o pedido...
                 </p>
               )}
-              {service.status === 'accepted' && (
+              {normalizedStatus === 'accepted' && (
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   🏃 Motoboy a caminho da coleta...
                 </p>
               )}
-              {service.status === 'collected' && (
+              {normalizedStatus === 'collected' && (
                 <p className="text-sm text-blue-700 dark:text-blue-300 animate-pulse">
                   📦 Pedido coletado! Preparando rota...
                 </p>
               )}
-              {service.status === 'on_route' && (
+              {normalizedStatus === 'on_route' && (
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   🚴 Motoboy a caminho da entrega! Acompanhe no mapa abaixo.
                 </p>
               )}
-              {service.status === 'delivered' && (
+              {normalizedStatus === 'delivered' && (
                 <div className="space-y-2">
                   <p className="text-sm text-green-700 dark:text-green-300 font-semibold">
                     ✅ Pedido entregue com sucesso!
@@ -648,7 +654,7 @@ export const ActiveRideCard = ({
             </div>
 
             {/* Rastreamento em Tempo Real */}
-            {(service.status === 'on_route' || service.status === 'collected') && (
+            {(normalizedStatus === 'on_route' || normalizedStatus === 'collected') && (
               <LiveTracking
                 serviceId={service.id}
                 motoboyId={service.motoboy_id}
@@ -658,7 +664,7 @@ export const ActiveRideCard = ({
             )}
 
             {/* Informações Adicionais para Empresa */}
-            {service.status === 'delivered' && (
+            {normalizedStatus === 'delivered' && (
               <div className="p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg">
                 <div className="flex items-center gap-3">
                   <CheckCheck className="h-8 w-8 text-green-600" />
@@ -685,7 +691,7 @@ export const ActiveRideCard = ({
             variant="outline" 
             size="sm"
             onClick={() => {
-              const destination = isMotoboy && service.status === 'accepted' 
+              const destination = isMotoboy && normalizedStatus === 'accepted' 
                 ? service.pickup_location 
                 : service.delivery_location;
               window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`, '_blank');

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getUserRole } from '@/lib/supabase-client';
 
 export const useServicePermissions = () => {
   const [userRole, setUserRole] = useState<'motoboy' | 'company' | null>(null);
@@ -7,20 +8,24 @@ export const useServicePermissions = () => {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        
-        // Get user role from user_roles table
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (roleData) {
-          setUserRole(roleData.role as 'motoboy' | 'company');
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          
+          // Use the robust getUserRole function
+          const role = await getUserRole(user.id);
+          if (role) {
+            setUserRole(role as 'motoboy' | 'company');
+          } else {
+            // Fallback to motoboy if no role found
+            setUserRole('motoboy');
+          }
         }
+      } catch (error) {
+        console.error('[useServicePermissions] Error getting user:', error);
+        // Set default role to prevent system breakage
+        setUserRole('motoboy');
       }
     };
 
@@ -51,11 +56,20 @@ export const useServicePermissions = () => {
   };
 
   const canAcceptService = (service: any): boolean => {
-    return (
+    const canAccept = (
       userRole === 'motoboy' && 
       service.status === 'available' && 
       !service.motoboy_id
     );
+    
+    console.log('[useServicePermissions] canAcceptService:', {
+      userRole,
+      serviceStatus: service.status,
+      hasMotoboyId: !!service.motoboy_id,
+      canAccept
+    });
+    
+    return canAccept;
   };
 
   return {

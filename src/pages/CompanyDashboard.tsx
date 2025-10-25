@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import CreateServiceDialog from "@/components/CreateServiceDialog";
 import ServiceCard from "@/components/ServiceCard";
+import { ActiveRideCard } from "@/components/ActiveRideCard";
 import { LiveTracking } from "@/components/LiveTracking";
 import { ChatWindow } from "@/components/ChatWindow";
 import { useServiceNotifications } from "@/hooks/use-service-notifications";
@@ -411,38 +412,27 @@ const CompanyDashboard = () => {
             <div className="space-y-8">
               {services.map((service) => (
                 <div key={service.id} className="space-y-4">
-                  <ServiceCard
-                    service={service}
-                    onUpdate={fetchServices}
-                    isCompany
-                  />
-                  
-                  {/* Live Tracking para serviços ativos */}
+                  {/* ActiveRideCard para serviços ativos (aceitos pelo motoboy) */}
                   {service.motoboy_id && (
-                    ['accepted', 'collected', 'on_route', 'in_progress'].includes(service.status) || 
+                    ['accepted', 'collected', 'on_route', 'in_progress', 'delivered', 'completed'].includes(service.status) || 
                     (service.status as any) === 'collected' || 
                     (service.status as any) === 'on_route'
-                  ) && (
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <LiveTracking
-                        serviceId={service.id}
-                        motoboyId={service.motoboy_id}
-                        pickupLocation={service.pickup_location}
-                        deliveryLocation={service.delivery_location}
-                      />
-                      
-                      <div>
-                        <Button
-                          onClick={() => {
-                            setSelectedService(service);
-                            setShowChat(true);
-                          }}
-                          className="w-full"
-                        >
-                          Abrir Chat com Motoboy
-                        </Button>
-                      </div>
-                    </div>
+                  ) ? (
+                    <ActiveRideCard
+                      service={service}
+                      isMotoboy={false}
+                      onUpdate={fetchServices}
+                      onOpenChat={() => {
+                        setSelectedService(service);
+                        setShowChat(true);
+                      }}
+                    />
+                  ) : (
+                    <ServiceCard
+                      service={service}
+                      onUpdate={fetchServices}
+                      isCompany
+                    />
                   )}
                 </div>
               ))}

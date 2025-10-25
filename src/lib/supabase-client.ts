@@ -358,7 +358,7 @@ export const getUserRole = async (userId: string): Promise<'company' | 'motoboy'
   if (!userId) return null;
   
   try {
-    // Primeiro tenta buscar da tabela user_roles (se existir)
+    // Primeiro tenta buscar da tabela user_roles (se existir e funcionar)
     try {
       const { data: userRole, error: roleError } = await supabase
         .from('user_roles')
@@ -367,6 +367,7 @@ export const getUserRole = async (userId: string): Promise<'company' | 'motoboy'
         .single();
 
       if (!roleError && userRole?.role) {
+        console.log('[Supabase] Role found in user_roles table:', userRole.role);
         return userRole.role as any;
       }
     } catch (e) {
@@ -388,14 +389,17 @@ export const getUserRole = async (userId: string): Promise<'company' | 'motoboy'
     // Verifica se a role existe no perfil (usando type assertion para evitar erros de tipo)
     const profileWithRole = profile as any;
     if (profileWithRole.role) {
+      console.log('[Supabase] Role found in profiles table:', profileWithRole.role);
       return profileWithRole.role as 'company' | 'motoboy' | 'admin' | 'moderator';
     }
     
     // Se não encontrar a role, retorna o valor padrão
+    console.log('[Supabase] No role found, using default (motoboy)');
     return 'motoboy';
   } catch (error) {
     console.error('[Supabase] Get role exception:', error);
-    return null;
+    // Em caso de erro, retorna motoboy como padrão para não quebrar o sistema
+    return 'motoboy';
   }
 };
 
