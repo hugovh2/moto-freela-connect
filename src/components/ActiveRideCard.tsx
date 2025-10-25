@@ -130,7 +130,8 @@ export const ActiveRideCard = ({
         .from('service-photos')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: file.type
         });
 
       if (uploadError) {
@@ -138,21 +139,31 @@ export const ActiveRideCard = ({
         throw new Error(`Erro no upload: ${uploadError.message}`);
       }
 
-      // Obter URL pública
+      // Obter URL pública; se bucket não for público, criar signed URL como fallback
       const { data: urlData } = supabase.storage
         .from('service-photos')
         .getPublicUrl(fileName);
 
-      if (!urlData.publicUrl) {
-        throw new Error('Não foi possível obter URL da foto');
+      let finalUrl: string | null = urlData.publicUrl || null;
+
+      // Fallback: criar signed URL se a URL pública não estiver acessível
+      if (!finalUrl || !finalUrl.includes('/object/public/')) {
+        const { data: signedData, error: signError } = await supabase.storage
+          .from('service-photos')
+          .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 ano
+        if (signError || !signedData?.signedUrl) {
+          console.error('Erro ao gerar signed URL:', signError);
+          throw new Error('Não foi possível gerar URL de acesso à foto');
+        }
+        finalUrl = signedData.signedUrl;
       }
 
-      setPhotoUrl(urlData.publicUrl);
-      
+      setPhotoUrl(finalUrl);
+
       // Atualizar no banco de dados (TypeScript pode não reconhecer photo_url ainda)
       const { error: updateError } = await supabase
         .from('services')
-        .update({ photo_url: urlData.publicUrl } as any)
+        .update({ photo_url: finalUrl } as any)
         .eq('id', service.id);
 
       if (updateError) {
@@ -177,17 +188,8 @@ export const ActiveRideCard = ({
         throw new Error(`Status inválido: ${newStatus}. Use um dos valores: ${validStatuses.join(', ')}`);
       }
 
+      // Atualiza apenas o status para evitar 400 quando colunas extras não existem
       const updates: any = { status: newStatus };
-
-      // Adicionar timestamps conforme o status
-      const now = new Date().toISOString();
-      if (newStatus === 'collected') {
-        updates.collected_at = now;
-      } else if (newStatus === 'in_progress') {
-        updates.in_progress_at = now;
-      } else if (newStatus === 'completed') {
-        updates.completed_at = now;
-      }
 
       const { error } = await supabase
         .from('services')

@@ -30,6 +30,7 @@ import ServiceCard from "@/components/ServiceCard";
 import LocationTracker from "@/components/LocationTracker";
 import { ActiveRideCard } from "@/components/ActiveRideCard";
 import { ChatWindow } from "@/components/ChatWindow";
+import { LocationDebug } from "@/components/LocationDebug";
 import { ServiceFilters, FilterCriteria } from "@/components/ServiceFilters";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useHaptics } from "@/hooks/use-haptics";
@@ -436,6 +437,12 @@ const MotoboyDashboard = () => {
             showControls={true}
           />
 
+          {/* Location Debug */}
+          <LocationDebug />
+        </section>
+
+        {/* Quick Actions */}
+        <section className="grid md:grid-cols-2 gap-6">
           {/* Quick Actions */}
           <Card className="border-0 bg-white dark:bg-slate-900">
             <CardContent className="p-6">
@@ -489,6 +496,33 @@ const MotoboyDashboard = () => {
                     <Navigation className="h-4 w-4 mr-1" />
                     Mapa
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats Quick View */}
+          <Card className="border-0 bg-white dark:bg-slate-900">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Status Hoje</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{stats.totalRides}</p>
+                    <p className="text-xs text-muted-foreground">Corridas</p>
+                  </div>
+                  <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{stats.completionRate}%</p>
+                    <p className="text-xs text-muted-foreground">Conclusão</p>
+                  </div>
+                  <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <p className="text-2xl font-bold text-yellow-600">{stats.averageRating.toFixed(1)}</p>
+                    <p className="text-xs text-muted-foreground">Avaliação</p>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <p className="text-2xl font-bold text-purple-600">{myServices.length}</p>
+                    <p className="text-xs text-muted-foreground">Ativas</p>
+                  </div>
                 </div>
               </div>
             </CardContent>

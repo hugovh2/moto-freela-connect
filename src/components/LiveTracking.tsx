@@ -29,7 +29,11 @@ export const LiveTracking = ({
 
   useEffect(() => {
     loadMotoboyInfo();
-    subscribeToLocation();
+    const unsubscribe = subscribeToLocation();
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [motoboyId]);
 
   const loadMotoboyInfo = async () => {
@@ -82,18 +86,39 @@ export const LiveTracking = ({
 
   const loadCurrentLocation = async () => {
     try {
+      console.log('[LiveTracking] Carregando localização do motoboy:', motoboyId);
+      
       const { data, error } = await supabase
         .from('user_locations')
         .select('latitude, longitude, updated_at')
         .eq('user_id', motoboyId)
         .single();
 
-      if (error) throw error;
-      if (data) {
-        setMotoboyLocation(data);
+      if (error) {
+        console.error('[LiveTracking] Erro ao carregar localização:', error);
+        
+        // Se a tabela não existe, mostrar mensagem específica
+        if (error.code === '42P01') {
+          console.error('[LiveTracking] ⚠️ TABELA user_locations NÃO EXISTE!');
+          console.error('[LiveTracking] Execute: supabase/FIX_REALTIME.sql');
+        }
+        
+        // Se não encontrou registro, não é erro crítico
+        if (error.code === 'PGRST116') {
+          console.warn('[LiveTracking] Motoboy ainda não enviou localização');
+        }
+        
+        throw error;
       }
-    } catch (error) {
-      console.error('Erro ao carregar localização:', error);
+      
+      if (data) {
+        console.log('[LiveTracking] ✅ Localização carregada:', data);
+        setMotoboyLocation(data);
+      } else {
+        console.warn('[LiveTracking] Nenhuma localização encontrada para o motoboy');
+      }
+    } catch (error: any) {
+      console.error('[LiveTracking] Erro final:', error.message);
     }
   };
 
@@ -166,8 +191,17 @@ export const LiveTracking = ({
               allowFullScreen
             />
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">Aguardando localização do motoboy...</p>
+            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+              <MapPin className="h-12 w-12 text-muted-foreground mb-3 animate-pulse" />
+              <p className="text-muted-foreground font-medium mb-2">
+                Aguardando localização do motoboy...
+              </p>
+              <p className="text-xs text-muted-foreground max-w-[250px]">
+                O motoboy precisa clicar em "Ficar Online" ou "Testar Enviar Localização" no dashboard
+              </p>
+              <p className="text-xs text-orange-500 mt-2">
+                💡 Verifique o Console (F12) para mais detalhes
+              </p>
             </div>
           )}
         </div>

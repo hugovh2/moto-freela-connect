@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useGeolocation } from '@/hooks/use-geolocation';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LocationTrackerProps {
   serviceId?: string;
@@ -69,6 +70,37 @@ const LocationTracker = ({
     currentLocation?.latitude,
     currentLocation?.longitude
   ]);
+
+  // Send location to Supabase for realtime tracking
+  useEffect(() => {
+    if (currentLocation && isAvailable) {
+      updateLocationInSupabase(currentLocation);
+    }
+  }, [
+    currentLocation?.latitude,
+    currentLocation?.longitude,
+    isAvailable
+  ]);
+
+  const updateLocationInSupabase = async (location: typeof currentLocation) => {
+    if (!location) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await (supabase.rpc as any)('upsert_user_location', {
+        p_user_id: user.id,
+        p_latitude: location.latitude,
+        p_longitude: location.longitude,
+        p_accuracy: location.accuracy || null,
+        p_speed: location.speed || null,
+        p_heading: location.heading || null
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar localização no Supabase:', error);
+    }
+  };
 
   const handleToggleAvailability = () => {
     const newStatus = !isAvailable;

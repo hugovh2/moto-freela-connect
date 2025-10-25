@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Phone, MapPin, X, Minimize2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -62,8 +61,15 @@ export const ChatWindow = ({
   useEffect(() => {
     loadMessages();
     getCurrentUser();
-    subscribeToMessages();
-    subscribeToTyping();
+    
+    // Subscrever e retornar cleanup
+    const unsubMessages = subscribeToMessages();
+    const unsubTyping = subscribeToTyping();
+    
+    return () => {
+      if (unsubMessages) unsubMessages();
+      if (unsubTyping) unsubTyping();
+    };
   }, [serviceId]);
 
   useEffect(() => {
@@ -277,10 +283,10 @@ export const ChatWindow = ({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 flex flex-col">
+      <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
         {/* Messages Area */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 chat-scroll smooth-scroll" ref={scrollRef}>
+          <div className="space-y-4 min-h-full">
             {messages.map((message) => {
               const isSender = message.sender_id === currentUserId;
               const isLocation = message.message_type === 'location';
@@ -325,7 +331,7 @@ export const ChatWindow = ({
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Quick Messages */}
         <div className="border-t p-2 shrink-0 bg-slate-50 dark:bg-slate-900/50">
