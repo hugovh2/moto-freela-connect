@@ -179,10 +179,15 @@ const CreateServiceDialog = ({ open, onOpenChange, onSuccess }: CreateServiceDia
       console.log('[CreateService] Usuário autenticado:', user.email);
       console.log('[CreateService] Criando serviço...');
 
+      // Calcular tempo estimado (assumindo velocidade média de 30 km/h)
+      const estimatedTimeMinutes = distance ? Math.round((distance / 30) * 60) : null;
+
       const { error } = await supabase.from("services").insert([
         {
           ...serviceData,
           company_id: user.id,
+          distance_km: distance || null,
+          estimated_time_minutes: estimatedTimeMinutes,
         },
       ]);
 

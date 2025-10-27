@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MapPin, DollarSign, Package, Navigation, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,6 +19,8 @@ interface ServiceCardProps {
     delivery_location: string;
     price: number;
     status: string;
+    motoboy_id?: string;
+    company_id?: string;
   };
   onUpdate: () => void;
   isCompany?: boolean;
@@ -25,6 +29,38 @@ interface ServiceCardProps {
 
 const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardProps) => {
   const { canAcceptService, canUpdateService, userRole, userId } = useServicePermissions();
+  const [motoboyInfo, setMotoboyInfo] = useState<{ full_name: string; avatar_url?: string } | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ full_name: string; avatar_url?: string } | null>(null);
+  
+  // Buscar info do motoboy se empresa está vendo e corrida foi aceita
+  useEffect(() => {
+    if (isCompany && service.motoboy_id && service.status !== 'available') {
+      const fetchMotoboyInfo = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', service.motoboy_id)
+          .single();
+        if (data) setMotoboyInfo(data);
+      };
+      fetchMotoboyInfo();
+    }
+  }, [isCompany, service.motoboy_id, service.status]);
+  
+  // Buscar info da empresa se motoboy está vendo
+  useEffect(() => {
+    if (isMotoboy && service.company_id) {
+      const fetchCompanyInfo = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', service.company_id)
+          .single();
+        if (data) setCompanyInfo(data);
+      };
+      fetchCompanyInfo();
+    }
+  }, [isMotoboy, service.company_id]);
   
   console.log('[ServiceCard] Props:', { isMotoboy, isCompany });
   console.log('[ServiceCard] Service:', { id: service.id, status: service.status, motoboy_id: service.motoboy_id });
@@ -141,6 +177,38 @@ const ServiceCard = ({ service, onUpdate, isCompany, isMotoboy }: ServiceCardPro
             {getStatusText(service.status)}
           </Badge>
         </div>
+        
+        {/* Mostrar motoboy para empresa */}
+        {isCompany && motoboyInfo && (
+          <div className="flex items-center gap-2 mt-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={motoboyInfo.avatar_url} />
+              <AvatarFallback className="bg-green-500 text-white text-xs">
+                {motoboyInfo.full_name?.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Motoboy:</p>
+              <p className="text-sm font-medium truncate">{motoboyInfo.full_name}</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Mostrar empresa para motoboy */}
+        {isMotoboy && companyInfo && (
+          <div className="flex items-center gap-2 mt-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={companyInfo.avatar_url} />
+              <AvatarFallback className="bg-orange-500 text-white text-xs">
+                {companyInfo.full_name?.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Empresa:</p>
+              <p className="text-sm font-medium truncate">{companyInfo.full_name}</p>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {service.description && (

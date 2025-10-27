@@ -15,7 +15,12 @@ import {
   CheckCircle,
   MapPin,
   Smartphone,
-  CreditCard
+  DollarSign,
+  Calendar,
+  Target,
+  Award,
+  Quote,
+  HelpCircle
 } from "lucide-react";
 
 const Index = () => {
@@ -178,8 +183,111 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Detail Section */}
+      {/* Como Funciona Section */}
       <section className="py-20 px-4 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-6 py-2">
+              Simples e rápido
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                Como funciona
+              </span>
+            </h2>
+            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+              Comece em 4 passos simples
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            {/* Step 1 */}
+            <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-500/10 to-pink-500/10 rounded-bl-[80px]"></div>
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
+                    01
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+                    Cadastre-se
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Crie sua conta gratuitamente em menos de 2 minutos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 2 */}
+            <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-bl-[80px]"></div>
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
+                    02
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+                    Publique sua Entrega
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Informe origem, destino e detalhes do serviço
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 3 */}
+            <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-bl-[80px]"></div>
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
+                    03
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+                    Receba Propostas
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Motoboys próximos enviam suas ofertas rapidamente
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 4 */}
+            <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-bl-[80px]"></div>
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
+                    04
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
+                    Acompanhe em Tempo Real
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Rastreie sua entrega do início ao fim com GPS
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center mt-12">
+            <Link to="/auth">
+              <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                Começar Agora
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Detail Section */}
+      <section className="py-20 px-4 bg-white dark:bg-slate-900">
         <div className="container mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
@@ -234,9 +342,9 @@ const Index = () => {
                     <div className="text-sm text-slate-600 dark:text-slate-300">Nativo</div>
                   </div>
                   <div className="text-center">
-                    <CreditCard className="h-12 w-12 mx-auto mb-4 text-blue-500" />
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">PIX</div>
-                    <div className="text-sm text-slate-600 dark:text-slate-300">Pagamento</div>
+                    <Clock className="h-12 w-12 mx-auto mb-4 text-blue-500" />
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white">24/7</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-300">Suporte</div>
                   </div>
                   <div className="text-center">
                     <Star className="h-12 w-12 mx-auto mb-4 text-yellow-500" />
@@ -246,6 +354,300 @@ const Index = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Para Motoboys Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-slate-900 dark:to-slate-800">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-6 py-2">
+              💰 Ganhe dinheiro com flexibilidade
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                Benefícios para 
+              </span>
+              <span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+                Motoboys
+              </span>
+            </h2>
+            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+              Trabalhe quando quiser, ganhe bem e cresça profissionalmente
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-semibold mb-4 text-slate-900 dark:text-white">
+                  Ganhe até R$ 5.000/mês
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Ganhos competitivos e sem limite de corridas
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
+                  <Calendar className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-semibold mb-4 text-slate-900 dark:text-white">
+                  Horário Flexível
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Trabalhe quando e onde quiser, no seu ritmo
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
+                  <Target className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-semibold mb-4 text-slate-900 dark:text-white">
+                  Escolha suas Corridas
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Aceite apenas as corridas que fazem sentido
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="group hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-0">
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300">
+                  <Award className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-semibold mb-4 text-slate-900 dark:text-white">
+                  Sistema de Gamificação
+                </h3>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Ganhe XP, badges e desbloqueie benefícios
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <Link to="/auth">
+              <Button size="lg" className="text-lg px-8 py-6 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <Bike className="h-5 w-5 mr-2" />
+                Começar a Ganhar Agora
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 px-4 bg-white dark:bg-slate-900">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 px-6 py-2">
+              ⭐ Depoimentos
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                O que dizem nossos 
+              </span>
+              <span className="bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
+                usuários
+              </span>
+            </h2>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Depoimento 1 */}
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-orange-50 to-pink-50 dark:from-slate-800 dark:to-slate-900">
+              <CardContent className="p-8">
+                <Quote className="h-12 w-12 text-orange-500/20 mb-4" />
+                <div className="flex items-center gap-1 mb-4">
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                  ))}
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 mb-6 italic leading-relaxed">
+                  "O MotoFreela mudou minha vida! Consigo ganhar mais que antes e com total flexibilidade de horário."
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                    JC
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-900 dark:text-white">João Carlos</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">Motoboy • São Paulo</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Depoimento 2 */}
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900">
+              <CardContent className="p-8">
+                <Quote className="h-12 w-12 text-blue-500/20 mb-4" />
+                <div className="flex items-center gap-1 mb-4">
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                  ))}
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 mb-6 italic leading-relaxed">
+                  "Plataforma excelente! As entregas são rápidas e o rastreamento em tempo real é perfeito."
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold">
+                    MS
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-900 dark:text-white">Maria Silva</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">Empresária • Rio de Janeiro</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Depoimento 3 */}
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-800 dark:to-slate-900">
+              <CardContent className="p-8">
+                <Quote className="h-12 w-12 text-purple-500/20 mb-4" />
+                <div className="flex items-center gap-1 mb-4">
+                  {[1,2,3,4,5].map(i => (
+                    <Star key={i} className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                  ))}
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 mb-6 italic leading-relaxed">
+                  "App incrível! Faço 20+ corridas por dia e o sistema de gamificação me motiva muito."
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+                    RL
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-900 dark:text-white">Ricardo Lima</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">Motoboy • Belo Horizonte</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-900">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 px-6 py-2">
+              ❓ Tire suas dúvidas
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              <span className="bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                Perguntas 
+              </span>
+              <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                Frequentes
+              </span>
+            </h2>
+          </div>
+          
+          <div className="space-y-6">
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">
+                      Como funciona o cadastro?
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      O cadastro é simples e rápido! Leva menos de 2 minutos. Basta criar sua conta, escolher se você é empresa ou motoboy, e preencher suas informações básicas. Motoboys precisam enviar documentos para verificação.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">
+                      Quais são as taxas?
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Não há taxa de adesão! A plataforma é 100% gratuita para usar. Você paga apenas uma taxa de serviço mensal opcional para recursos premium. Não processamos pagamentos - empresas pagam diretamente aos motoboys.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">
+                      Como funciona o pagamento?
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      A plataforma não processa pagamentos. As empresas pagam diretamente aos motoboys da forma que preferirem (PIX, dinheiro, transferência). O MotoFreela apenas conecta empresas e motoboys, facilitando o encontro e a gestão das entregas.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">
+                      O app funciona em todo o Brasil?
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Atualmente estamos presentes nas principais capitais brasileiras. Estamos expandindo rapidamente para novas cidades. Consulte a disponibilidade na sua região durante o cadastro.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">
+                      Posso cancelar uma corrida?
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Sim! Você pode cancelar antes do motoboy iniciar a coleta. Após o início, aplicam-se taxas de cancelamento conforme nossos termos de uso. Sempre recomendamos comunicar-se através do chat integrado.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>

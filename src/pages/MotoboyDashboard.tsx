@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfilePhotoUpload } from "@/components/ProfilePhotoUpload";
+import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 import { 
   LogOut, 
   Package, 
@@ -30,7 +32,6 @@ import ServiceCard from "@/components/ServiceCard";
 import LocationTracker from "@/components/LocationTracker";
 import { ActiveRideCard } from "@/components/ActiveRideCard";
 import { ChatWindow } from "@/components/ChatWindow";
-import { LocationDebug } from "@/components/LocationDebug";
 import { ServiceFilters, FilterCriteria } from "@/components/ServiceFilters";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useHaptics } from "@/hooks/use-haptics";
@@ -80,6 +81,15 @@ const MotoboyDashboard = () => {
   const { position, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
   const haptics = useHaptics();
   const { notifications } = useServiceNotifications('motoboy');
+
+  // Initialize message notifications
+  useMessageNotifications({
+    userId: motoboyProfile?.id || '',
+    onNewMessage: (message) => {
+      console.log('[MotoboyDashboard] Nova mensagem recebida:', message);
+      haptics.medium(); // Vibração média
+    }
+  });
 
   useEffect(() => {
     initializeDashboard();
@@ -216,6 +226,29 @@ const MotoboyDashboard = () => {
       } else if (isMounted) {
         setMyServices(mine || []);
       }
+
+      // Configurar real-time subscription para atualizar cards automaticamente
+      const channel = supabase
+        .channel('motoboy-services')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'services'
+          },
+          (payload) => {
+            console.log('[MotoboyDashboard] Real-time update:', payload);
+            // Recarregar serviços quando houver mudança
+            fetchServices();
+          }
+        )
+        .subscribe();
+
+      // Cleanup na desmontagem (será chamado pelo useEffect)
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } catch (error: any) {
       console.error('[MotoboyDashboard] Fetch services error:', error);
       handleError(error, { customMessage: 'Erro ao carregar serviços' });
@@ -324,29 +357,29 @@ const MotoboyDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 dark:from-slate-900 dark:to-slate-800">
       <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/20 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <Bike className="h-6 w-6 text-white" />
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Bike className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
+                <div className="hidden sm:block min-w-0">
+                  <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300 truncate">
                     Painel do Motoboy
                   </h1>
                   {motoboyProfile && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Bem-vindo, {motoboyProfile.full_name}
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 truncate">
+                      {motoboyProfile.full_name}
                     </p>
                   )}
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               {/* Quick Stats */}
-              <div className="hidden md:flex items-center gap-4 text-sm">
+              <div className="hidden lg:flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-3 py-1 rounded-full">
                   <DollarSign className="h-4 w-4" />
                   <span className="font-medium">R$ {stats.todayEarnings.toFixed(2)} hoje</span>
@@ -357,15 +390,19 @@ const MotoboyDashboard = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={motoboyProfile?.avatar_url} />
-                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-500 text-white">
-                    {motoboyProfile?.full_name?.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <Button variant="ghost" onClick={handleSignOut} className="text-slate-600 hover:text-slate-900">
-                  <LogOut className="h-4 w-4" />
+              <div className="flex items-center gap-3">
+                {motoboyProfile && (
+                  <ProfilePhotoUpload
+                    currentPhotoUrl={motoboyProfile.avatar_url}
+                    userName={motoboyProfile.full_name || 'Motoboy'}
+                    userId={motoboyProfile.id}
+                    onPhotoUpdated={(newUrl) => {
+                      setMotoboyProfile({ ...motoboyProfile, avatar_url: newUrl });
+                    }}
+                  />
+                )}
+                <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-600 hover:text-slate-900 h-8 w-8 sm:h-10 sm:w-10 p-0">
+                  <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
             </div>
@@ -373,21 +410,21 @@ const MotoboyDashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6 md:space-y-8">
         {/* Stats Overview */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-green-50 dark:from-slate-800 dark:to-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Ganhos Totais</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-white">R$ {stats.totalEarnings.toFixed(2)}</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-1 truncate">Ganhos Totais</p>
+                  <p className="text-lg sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white truncate">R$ {stats.totalEarnings.toFixed(2)}</p>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-2 sm:mt-3 md:mt-4 flex items-center gap-2 hidden sm:flex">
                 <TrendingUp className="h-4 w-4 text-green-500" />
                 <span className="text-xs text-green-600">+R$ {stats.todayEarnings.toFixed(2)} hoje</span>
               </div>
@@ -395,17 +432,17 @@ const MotoboyDashboard = () => {
           </Card>
 
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-blue-50 dark:from-slate-800 dark:to-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Corridas Totais</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.totalRides}</p>
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-1 truncate">Corridas Totais</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{stats.totalRides}</p>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                  <Bike className="h-6 w-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Bike className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
                 </div>
               </div>
-              <div className="mt-4">
+              <div className="mt-2 sm:mt-3 md:mt-4 hidden sm:block">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
                     {stats.completionRate.toFixed(0)}% concluídas
@@ -416,20 +453,20 @@ const MotoboyDashboard = () => {
           </Card>
 
           <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-white to-yellow-50 dark:from-slate-800 dark:to-slate-900">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Avaliação Média</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.averageRating.toFixed(1)}</p>
-                    <Star className="h-6 w-6 text-yellow-500 fill-yellow-500" />
+            <CardContent className="p-3 sm:p-4 md:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-1 truncate">Avaliação Média</p>
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{stats.averageRating.toFixed(1)}</p>
+                    <Star className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-yellow-500 fill-yellow-500" />
                   </div>
                 </div>
-                <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                  <Star className="h-6 w-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Star className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
                 </div>
               </div>
-              <div className="mt-4">
+              <div className="mt-2 sm:mt-3 md:mt-4 hidden sm:block">
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map((star) => (
                     <Star 
@@ -468,15 +505,50 @@ const MotoboyDashboard = () => {
         </section>
 
         {/* Status and Controls */}
-        <section className="grid md:grid-cols-2 gap-6">
+        <section className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
           {/* Location Tracker */}
           <LocationTracker 
             onLocationUpdate={handleLocationUpdate}
             showControls={true}
+            isAvailable={isAvailable}
           />
 
-          {/* Location Debug */}
-          <LocationDebug />
+          {/* Histórico de Corridas */}
+          <Card className="border-0 bg-white dark:bg-slate-900">
+            <CardContent className="p-4 sm:p-6">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Histórico de Corridas</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {myServices.filter(s => s.status === 'delivered').length > 0 ? (
+                  myServices
+                    .filter(s => s.status === 'delivered')
+                    .slice(0, 5)
+                    .map(service => (
+                      <div key={service.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{service.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {service.pickup_location}
+                            </p>
+                          </div>
+                          <div className="text-right ml-2 flex-shrink-0">
+                            <p className="text-sm font-bold text-green-600">R$ {service.price.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {service.created_at ? new Date(service.created_at).toLocaleDateString('pt-BR') : '-'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Package className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">Nenhuma corrida concluída ainda</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
         {/* Quick Actions */}

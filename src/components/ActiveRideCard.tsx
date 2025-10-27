@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { 
   MapPin, 
   Package,
@@ -33,6 +34,7 @@ interface ActiveRideCardProps {
     delivery_location: string;
     price: number;
     accepted_at?: string;
+    collected_at?: string;
     company_id: string;
     motoboy_id: string;
     distance_km?: number;
@@ -55,29 +57,40 @@ export const ActiveRideCard = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
-
-  // Timer de corrida
+  const [motoboyInfo, setMotoboyInfo] = useState<{ full_name: string; avatar_url?: string } | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ full_name: string; avatar_url?: string } | null>(null);
+  
+  // Buscar info do motoboy se é empresa vendo
   useEffect(() => {
-    if (!service.accepted_at) return;
+    if (!isMotoboy && service.motoboy_id) {
+      const fetchMotoboyInfo = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', service.motoboy_id)
+          .single();
+        if (data) setMotoboyInfo(data);
+      };
+      fetchMotoboyInfo();
+    }
+  }, [isMotoboy, service.motoboy_id]);
+  
+  // Buscar info da empresa se é motoboy vendo
+  useEffect(() => {
+    if (isMotoboy && service.company_id) {
+      const fetchCompanyInfo = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', service.company_id)
+          .single();
+        if (data) setCompanyInfo(data);
+      };
+      fetchCompanyInfo();
+    }
+  }, [isMotoboy, service.company_id]);
 
-    const interval = setInterval(() => {
-      const start = new Date(service.accepted_at!);
-      const now = new Date();
-      const diff = now.getTime() - start.getTime();
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setElapsedTime(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [service.accepted_at]);
-
-  // Normalizar status para evitar problemas com diferentes valores
+  // Normalizar status primeiro
   const normalizeStatus = (status: string) => {
     const statusMap: { [key: string]: string } = {
       'available': 'pending',
@@ -93,6 +106,45 @@ export const ActiveRideCard = ({
   };
 
   const normalizedStatus = normalizeStatus(service.status);
+
+  // Timer de corrida - INICIA AO COLETAR, PARA AO ENTREGAR
+  useEffect(() => {
+    // Cronômetro só inicia quando a entrega for COLETADA
+    if (!service.collected_at) return;
+    
+    // PARA o cronômetro se já foi entregue
+    if (normalizedStatus === 'delivered') {
+      // Calcular tempo final e manter fixo
+      const start = new Date(service.collected_at);
+      const end = new Date(); // Ou usar delivered_at se existir
+      const diff = end.getTime() - start.getTime();
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setElapsedTime(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      );
+      return; // Não criar interval
+    }
+
+    const interval = setInterval(() => {
+      const start = new Date(service.collected_at!);
+      const now = new Date();
+      const diff = now.getTime() - start.getTime();
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setElapsedTime(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [service.collected_at, normalizedStatus]);
 
   // Progresso baseado no status normalizado
   const getProgress = () => {
@@ -293,7 +345,13 @@ export const ActiveRideCard = ({
 
       // Feedback por status
       if (newStatus === 'collected') {
-        toast.success('✅ Pedido coletado!');
+        toast.success('✅ Pedido coletado! Cronômetro iniciado.');
+        
+        // Salvar timestamp de coleta
+        await supabase
+          .from('services')
+          .update({ collected_at: new Date().toISOString() } as any)
+          .eq('id', service.id);
         
         // Transição automática para on_route após 1.5s
         setTimeout(async () => {
@@ -455,9 +513,72 @@ export const ActiveRideCard = ({
             </p>
           </div>
         </div>
+        
+        {/* Mostrar motoboy para empresa */}
+        {!isMotoboy && motoboyInfo && (
+          <div className="flex items-center gap-2 mt-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={motoboyInfo.avatar_url} />
+              <AvatarFallback className="bg-green-500 text-white text-xs">
+                {motoboyInfo.full_name?.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Motoboy:</p>
+              <p className="text-sm font-medium truncate">{motoboyInfo.full_name}</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Mostrar empresa para motoboy */}
+        {isMotoboy && companyInfo && (
+          <div className="flex items-center gap-2 mt-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={companyInfo.avatar_url} />
+              <AvatarFallback className="bg-orange-500 text-white text-xs">
+                {companyInfo.full_name?.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Empresa:</p>
+              <p className="text-sm font-medium truncate">{companyInfo.full_name}</p>
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Cronômetro Destacado para Motoboy */}
+        {isMotoboy && normalizedStatus !== 'delivered' && (
+          <div className={`p-6 rounded-2xl shadow-lg ${
+            service.collected_at 
+              ? 'bg-gradient-to-r from-orange-500 to-pink-500 animate-pulse' 
+              : 'bg-gradient-to-r from-slate-400 to-slate-500'
+          }`}>
+            <div className="flex flex-col items-center justify-center text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <Timer className={`h-6 w-6 ${service.collected_at ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+                <span className="text-sm font-semibold uppercase tracking-wide">
+                  {service.collected_at ? 'Tempo de Corrida' : 'Aguardando Coleta'}
+                </span>
+              </div>
+              <div className="text-5xl font-bold tabular-nums tracking-wider">
+                {service.collected_at ? elapsedTime : '--:--:--'}
+              </div>
+              <p className="text-sm text-white/80 mt-2">
+                {service.collected_at ? (
+                  formatDistanceToNow(new Date(service.collected_at), {
+                    addSuffix: true,
+                    locale: ptBR
+                  })
+                ) : (
+                  'Clique em "Coletar Pedido" para iniciar'
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="space-y-2">
           <Progress 

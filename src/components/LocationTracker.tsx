@@ -20,15 +20,30 @@ interface LocationTrackerProps {
   serviceId?: string;
   showControls?: boolean;
   onLocationUpdate?: (location: { lat: number; lng: number }) => void;
+  isAvailable?: boolean;
 }
 
 const LocationTracker = ({ 
   serviceId, 
   showControls = true,
-  onLocationUpdate 
+  onLocationUpdate,
+  isAvailable: externalIsAvailable
 }: LocationTrackerProps) => {
-  const [isAvailable, setIsAvailable] = useState(false);
+  const [internalIsAvailable, setInternalIsAvailable] = useState(false);
+  const isAvailable = externalIsAvailable !== undefined ? externalIsAvailable : internalIsAvailable;
   const { position, error, getCurrentPosition, startWatching, stopWatching } = useGeolocation();
+  
+  // Auto-start tracking quando ficar online
+  useEffect(() => {
+    if (isAvailable) {
+      console.log('[LocationTracker] Ficou online - iniciando tracking automático...');
+      startWatching();
+      toast.success('📍 Rastreamento de localização ativado!');
+    } else {
+      console.log('[LocationTracker] Ficou offline - parando tracking...');
+      stopWatching();
+    }
+  }, [isAvailable]);
   
   // Usar useRef para armazenar o callback sem causar re-render
   const onLocationUpdateRef = useRef(onLocationUpdate);
@@ -127,7 +142,7 @@ const LocationTracker = ({
 
   const handleToggleAvailability = () => {
     const newStatus = !isAvailable;
-    setIsAvailable(newStatus);
+    setInternalIsAvailable(newStatus);
     
     if (newStatus) {
       startWatching();
