@@ -71,8 +71,16 @@ const CompanyDashboard = () => {
   const { notifications } = useServiceNotifications('company');
 
   useEffect(() => {
-    checkAuth();
-    fetchServices();
+    const init = async () => {
+      try {
+        await checkAuth();
+        await fetchServices();
+      } catch (error) {
+        console.error('[CompanyDashboard] Init error:', error);
+      }
+    };
+    
+    init();
     
     return () => {
       setIsMounted(false);
@@ -81,43 +89,72 @@ const CompanyDashboard = () => {
 
   const checkAuth = async () => {
     try {
+      console.log('[CompanyDashboard] Verificando autenticação...');
+      
       const user = await getCurrentUser();
       
       if (!user) {
+        console.log('[CompanyDashboard] Usuário não autenticado');
         if (isMounted) {
           safeNavigate(navigate, "/auth", { replace: true });
         }
         return;
       }
 
-      const profile = await getUserProfile(user.id);
-      const role = await getUserRole(user.id);
+      console.log('[CompanyDashboard] Usuário encontrado:', user.id);
+
+      // Timeout de 8s para buscar perfil e role
+      const profilePromise = getUserProfile(user.id);
+      const rolePromise = getUserRole(user.id);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao carregar perfil')), 8000)
+      );
+
+      let profile, role;
+      try {
+        [profile, role] = await Promise.race([
+          Promise.all([profilePromise, rolePromise]),
+          timeoutPromise
+        ]);
+      } catch (timeoutError) {
+        console.error('[CompanyDashboard] Timeout ao carregar dados:', timeoutError);
+        // Em caso de timeout, tenta continuar com valores padrão
+        profile = null;
+        role = 'company';
+      }
+
+      console.log('[CompanyDashboard] Profile:', profile, 'Role:', role);
 
       if (!profile || !role) {
-        toast.error('Perfil não encontrado');
-        if (isMounted) {
-          safeNavigate(navigate, "/auth", { replace: true });
-        }
-        return;
+        console.warn('[CompanyDashboard] Perfil ou role não encontrado');
+        toast.error('Erro ao carregar perfil. Usando dados padrão.');
+        // Não redireciona, apenas continua com dados limitados
       }
 
-      if (role !== "company") {
+      if (role && role !== "company") {
+        console.log('[CompanyDashboard] Usuário não é empresa, redirecionando...');
         if (isMounted) {
           safeNavigate(navigate, "/motoboy", { replace: true });
         }
         return;
       }
       
-      if (isMounted) {
+      if (isMounted && profile) {
         setCompanyProfile(profile);
-        await calculateStats(user.id);
+        try {
+          await calculateStats(user.id);
+        } catch (statsError) {
+          console.error('[CompanyDashboard] Erro ao calcular stats:', statsError);
+          // Não bloqueia se stats falharem
+        }
       }
     } catch (error) {
       console.error('[CompanyDashboard] Auth check error:', error);
-      handleError(error, { customMessage: 'Erro ao verificar autenticação' });
-      if (isMounted) {
-        safeNavigate(navigate, "/auth", { replace: true });
-      }
+      handleError(error, { 
+        customMessage: 'Erro ao verificar autenticação',
+        silent: true 
+      });
+      // Não redireciona automaticamente para evitar loop
     }
   };
 

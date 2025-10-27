@@ -4,4 +4,21 @@
     <string name="title_activity_main">MotoFreela</string>
     <string name="package_name">com.motofreela.app</string>
     <string name="custom_url_scheme">com.motofreela.app</string>
+    
+    <!-- Notificações Push -->
+    <string name="notification_channel_id">motofreela_notifications</string>
+    <string name="notification_channel_name">MotoFreela Notificações</string>
+    <string name="notification_channel_description">Notificações de corridas e atualizações</string>
+    
+    <!-- Localização -->
+    <string name="location_permission_title">Permissão de Localização</string>
+    <string name="location_permission_message">O MotoFreela precisa da sua localização para rastreamento em tempo real e navegação.</string>
+    
+    <!-- Câmera -->
+    <string name="camera_permission_title">Permissão de Câmera</string>
+    <string name="camera_permission_message">O MotoFreela precisa da câmera para fotos de entrega e comprovantes.</string>
+    
+    <!-- Emergência -->
+    <string name="emergency_title">Alerta de Emergência</string>
+    <string name="emergency_message">Alerta de emergência acionado! Sua localização foi compartilhada.</string>
 </resources>

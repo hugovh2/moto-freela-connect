@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Supabase Configuration -->
+    <string name="supabase_url">https://rinszzwdteaytefdwwnc.supabase.co</string>
+    <string name="supabase_anon_key">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpbnN6endkdGVheXRlZmR3d25jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5NzQ4MDAsImV4cCI6MjA0NzU1MDgwMH0.8K8v8K8v8K8v8K8v8K8v8K8v8K8v8K8v8K8v8K8v8</string>
+    
+    <!-- API Endpoints -->
+    <string name="supabase_auth_endpoint">/auth/v1</string>
+    <string name="supabase_rest_endpoint">/rest/v1</string>
+    <string name="supabase_storage_endpoint">/storage/v1</string>
+    
+    <!-- Storage Buckets -->
+    <string name="supabase_bucket_documents">documents</string>
+    <string name="supabase_bucket_photos">service-photos</string>
+    <string name="supabase_bucket_avatars">avatars</string>
+</resources>

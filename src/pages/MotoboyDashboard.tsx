@@ -96,30 +96,51 @@ const MotoboyDashboard = () => {
   const initializeDashboard = async () => {
     try {
       setIsLoading(true);
+      console.log('[MotoboyDashboard] Inicializando dashboard...');
       
       // Check authentication
       const user = await getCurrentUser();
       
       if (!user) {
+        console.log('[MotoboyDashboard] Usuário não autenticado');
         if (isMounted) {
           safeNavigate(navigate, "/auth", { replace: true });
         }
         return;
       }
 
-      // Get and validate profile
-      const profile = await getUserProfile(user.id);
-      const role = await getUserRole(user.id);
+      console.log('[MotoboyDashboard] Usuário encontrado:', user.id);
+
+      // Get and validate profile com timeout
+      const profilePromise = getUserProfile(user.id);
+      const rolePromise = getUserRole(user.id);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao carregar perfil')), 8000)
+      );
+
+      let profile, role;
+      try {
+        [profile, role] = await Promise.race([
+          Promise.all([profilePromise, rolePromise]),
+          timeoutPromise
+        ]);
+      } catch (timeoutError) {
+        console.error('[MotoboyDashboard] Timeout ao carregar dados:', timeoutError);
+        // Em caso de timeout, tenta continuar com valores padrão
+        profile = null;
+        role = 'motoboy';
+      }
+
+      console.log('[MotoboyDashboard] Profile:', profile, 'Role:', role);
 
       if (!profile || !role) {
-        toast.error('Perfil não encontrado');
-        if (isMounted) {
-          safeNavigate(navigate, "/auth", { replace: true });
-        }
-        return;
+        console.warn('[MotoboyDashboard] Perfil ou role não encontrado');
+        toast.error('Erro ao carregar perfil. Usando dados padrão.');
+        // Não redireciona, apenas continua com dados limitados
       }
 
-      if (role !== "motoboy") {
+      if (role && role !== "motoboy") {
+        console.log('[MotoboyDashboard] Usuário não é motoboy, redirecionando...');
         if (isMounted) {
           safeNavigate(navigate, "/company", { replace: true });
         }
@@ -127,13 +148,30 @@ const MotoboyDashboard = () => {
       }
       
       if (isMounted) {
-        setMotoboyProfile(profile);
-        await calculateStats(user.id);
-        await fetchServices();
+        if (profile) {
+          setMotoboyProfile(profile);
+        }
+        
+        try {
+          await calculateStats(user.id);
+        } catch (statsError) {
+          console.error('[MotoboyDashboard] Erro ao calcular stats:', statsError);
+          // Não bloqueia se stats falharem
+        }
+        
+        try {
+          await fetchServices();
+        } catch (servicesError) {
+          console.error('[MotoboyDashboard] Erro ao buscar serviços:', servicesError);
+          // Não bloqueia se fetch de serviços falhar
+        }
       }
     } catch (error) {
       console.error('[MotoboyDashboard] Initialization error:', error);
-      handleError(error, { customMessage: 'Erro ao inicializar dashboard' });
+      handleError(error, { 
+        customMessage: 'Erro ao inicializar dashboard',
+        silent: true
+      });
     } finally {
       if (isMounted) {
         setIsLoading(false);

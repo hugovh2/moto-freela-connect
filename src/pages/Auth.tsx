@@ -152,47 +152,77 @@ const Auth = () => {
     }
 
     setIsLoading(true);
+    console.log('[Auth] Iniciando login...');
 
     try {
+      console.log('[Auth] Chamando signInWithEmail...');
       const { data, error } = await signInWithEmail(email, password);
 
       if (error) {
+        console.error('[Auth] Erro no signInWithEmail:', error);
         handleAuthError(error, 'signin');
         return;
       }
 
-      if (!data.user) {
+      if (!data?.user) {
+        console.error('[Auth] Nenhum usuário retornado');
         toast.error('Erro ao fazer login. Tente novamente.');
         return;
       }
 
-      // Get user role to check access
-      const role = await getUserRole(data.user.id);
+      console.log('[Auth] Usuário autenticado:', data.user.id);
 
-      if (!role) {
-        toast.error('Perfil não encontrado. Entre em contato com o suporte.');
-        return;
+      // Get user role to check access com timeout adicional
+      console.log('[Auth] Buscando role do usuário...');
+      let role: string | null = null;
+      
+      try {
+        // Timeout de 8 segundos para buscar role
+        const rolePromise = getUserRole(data.user.id);
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout ao buscar role')), 8000)
+        );
+        
+        role = await Promise.race([rolePromise, timeoutPromise]);
+        console.log('[Auth] Role encontrada:', role);
+      } catch (roleError) {
+        console.error('[Auth] Erro ao buscar role:', roleError);
+        // Se falhar, usa role padrão
+        role = 'motoboy';
+        console.log('[Auth] Usando role padrão:', role);
       }
 
+      if (!role) {
+        console.warn('[Auth] Role null, usando motoboy como padrão');
+        role = 'motoboy';
+      }
+
+      console.log('[Auth] Login bem-sucedido, preparando navegação...');
       toast.success("Login realizado com sucesso!", {
-        duration: 2000,
+        duration: 1500,
       });
 
-      // Safe navigation with delay
+      // Safe navigation with delay reduzido
       if (isMounted) {
         setTimeout(() => {
           if (isMounted) {
             const dashboardPath = getDashboardRoute(role);
-            safeNavigate(navigate, dashboardPath, { replace: true });
+            console.log('[Auth] Navegando para:', dashboardPath);
+            try {
+              safeNavigate(navigate, dashboardPath, { replace: true });
+            } catch (navError) {
+              console.error('[Auth] Erro na navegação:', navError);
+              toast.error('Erro ao redirecionar. Recarregue o app.');
+            }
           }
-        }, 1000);
+        }, 500);
       }
     } catch (error: any) {
       console.error('[Auth] Signin exception:', error);
       handleAuthError(error, 'signin');
     } finally {
       if (isMounted) {
-        setIsLoading(false);
+        setTimeout(() => setIsLoading(false), 100);
       }
     }
   };

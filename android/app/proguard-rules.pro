@@ -14,8 +14,43 @@
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Capacitor specific rules
+-keep class com.getcapacitor.** { *; }
+-keep class com.capacitorjs.** { *; }
+-keep class com.ionic.** { *; }
+
+# WebView JavaScript interface
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Keep native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep all classes in the main package
+-keep class com.motofreela.app.** { *; }
+
+# Keep all JavaScript interfaces
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Keep all classes that might be called from JavaScript
+-keep class * extends java.lang.Exception { *; }
+
+# Keep all classes that might be used by reflection
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Keep all classes that might be used by Capacitor plugins
+-keep class * extends com.getcapacitor.Plugin { *; }
+-keep class * extends com.getcapacitor.Bridge { *; }

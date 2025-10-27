@@ -283,6 +283,7 @@ type UserProfile = {
   created_at: string;
   updated_at: string;
 };
+
 /**
  * Gets user profile from database
  * Retorna um perfil padrão se não encontrar
@@ -291,61 +292,56 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
   if (!userId) return null;
   
   try {
-    // Primeiro tenta buscar da tabela profiles
-    const { data, error } = await supabase
+    console.log('[getUserProfile] Buscando perfil para:', userId);
+    
+    // Adicionar timeout para evitar travamento no Android
+    const timeoutPromise = new Promise<any>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout ao buscar perfil')), 10000);
+    });
+
+    const queryPromise = supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    // Se encontrar, retorna o perfil
-    if (!error && data) {
-      // Garante que o perfil tenha uma role válida
-      const profile = data as any;
-      return {
-        id: profile.id,
-        email: profile.email || '',
-        full_name: profile.full_name || 'Usuário',
-        role: profile.role || 'motoboy',
-        phone: profile.phone,
-        avatar_url: profile.avatar_url,
-        rating: profile.rating,
-        total_jobs: profile.total_jobs,
-        created_at: profile.created_at || new Date().toISOString(),
-        updated_at: profile.updated_at || new Date().toISOString()
-      };
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+    if (error) {
+      console.error('[getUserProfile] Erro ao buscar perfil:', error);
+      
+      // Se o perfil não existir, não é erro crítico
+      if (error.code === 'PGRST116') {
+        console.log('[getUserProfile] Perfil não encontrado, retornando null');
+        return null;
+      }
+      
+      // Em caso de erro, retorna null ao invés de lançar exceção
+      console.warn('[getUserProfile] Retornando null devido a erro');
+      return null;
     }
 
-    // Se não encontrar, tenta obter os dados do usuário autenticado
-    console.warn('[Supabase] Profile not found, creating default profile for user:', userId);
-    
-    const { data: authData } = await supabase.auth.getUser();
-    const userEmail = authData.user?.email || '';
-    const userName = authData.user?.user_metadata?.full_name || 'Usuário';
-    const userRole = authData.user?.user_metadata?.role || 'motoboy';
-    
-    // Cria um perfil padrão
-    const defaultProfile: UserProfile = {
-      id: userId,
-      email: userEmail,
-      full_name: userName,
-      role: userRole,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    // Tenta inserir o perfil padrão
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .upsert(defaultProfile);
-      
-    if (insertError) {
-      console.error('[Supabase] Error creating default profile:', insertError);
+    if (!data) {
+      console.log('[getUserProfile] Nenhum dado retornado');
+      return null;
     }
+
+    console.log('[getUserProfile] Perfil encontrado:', { id: data.id, role: data.role });
     
-    return defaultProfile;
+    return {
+      id: data.id,
+      email: data.email || '',
+      full_name: data.full_name || 'Usuário',
+      role: data.role as 'company' | 'motoboy' | 'admin' | 'moderator',
+      phone: data.phone,
+      avatar_url: data.avatar_url,
+      rating: data.rating,
+      total_jobs: data.total_jobs,
+      created_at: data.created_at,
+      updated_at: data.updated_at
+    };
   } catch (error) {
-    console.error('[Supabase] Get profile exception:', error);
+    console.error('[getUserProfile] Erro inesperado:', error);
     return null;
   }
 };
@@ -357,31 +353,42 @@ export const getUserRole = async (userId: string): Promise<'company' | 'motoboy'
   if (!userId) return null;
   
   try {
+    console.log('[getUserRole] Buscando role para:', userId);
+    
+    // Adicionar timeout para evitar travamento no Android
+    const timeoutPromise = new Promise<any>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout ao buscar role')), 10000);
+    });
+    
     // Primeiro tenta buscar da tabela user_roles (se existir e funcionar)
     try {
-      const { data: userRole, error: roleError } = await supabase
+      const roleQueryPromise = supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .single();
+        
+      const { data: userRole, error: roleError } = await Promise.race([roleQueryPromise, timeoutPromise]);
 
       if (!roleError && userRole?.role) {
-        console.log('[Supabase] Role found in user_roles table:', userRole.role);
+        console.log('[getUserRole] Role found in user_roles table:', userRole.role);
         return userRole.role as any;
       }
     } catch (e) {
-      console.warn('[Supabase] Error querying user_roles table, falling back to profiles table');
+      console.warn('[getUserRole] Error querying user_roles table, falling back to profiles table');
     }
 
     // Se não encontrar em user_roles, tenta buscar do perfil
-    const { data: profile, error } = await supabase
+    const profileQueryPromise = supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+      
+    const { data: profile, error } = await Promise.race([profileQueryPromise, timeoutPromise]);
 
     if (error || !profile) {
-      console.warn('[Supabase] Profile not found, using default role (motoboy)');
+      console.warn('[getUserRole] Profile not found, using default role (motoboy)');
       return 'motoboy';
     }
 
