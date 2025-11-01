@@ -17,7 +17,6 @@ Todas as funcionalidades da versão web foram migradas e estão operacionais no 
 
 **Configuração:**
 ```typescript
-// src/lib/supabase-client.ts
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 ```
